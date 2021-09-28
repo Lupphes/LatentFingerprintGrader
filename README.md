@@ -1,0 +1,2 @@
+# FingerprintQualityGrader
+Algoritmické vyhodnocení kvality daktyloskopických stop
