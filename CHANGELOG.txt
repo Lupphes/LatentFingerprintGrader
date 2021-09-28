@@ -1,0 +1,6 @@
+Change Log
+==========
+
+0.0.1 (29.09.2021)
+--------------------------------------
+Application does nothing. Basic setup.

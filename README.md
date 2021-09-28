@@ -1,2 +1,1 @@
-# FingerprintQualityGrader
-Algoritmické vyhodnocení kvality daktyloskopických stop
+This is basic library for bachelor project which grades a quality of fingerprints
