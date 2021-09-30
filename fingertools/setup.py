@@ -10,7 +10,7 @@ classifiers = [
 ]
  
 setup(
-  name='fingerprintqualitygrader',
+  name='finger-tools',
   version='0.0.1',
   description='Grades a quality of fingerprints',
   long_description=open('./../README.md').read() + '\n\n' + open('./../CHANGELOG.txt').read(),
