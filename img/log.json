@@ -1,0 +1,28 @@
+{
+    "012_3_1": {
+        "url": "https://www.researchgate.net/profile/Rekha-Vig/publication/251949449/figure/fig1/AS:298229049643011@1448114754623/Sample-fingerprint-012-3-1tif-11-Cross-Match-Verifier-300-scanner-at-500-dpi.png",
+        "webpage": "https://www.researchgate.net/figure/Sample-fingerprint-012-3-1tif-11-Cross-Match-Verifier-300-scanner-at-500-dpi_fig1_251949449",
+        "scanner": "Cross Match Verifier 300 scanner",
+        "dpi": 500
+    },
+    "fp": {
+        "url": "https://thumbs.dreamstime.com/z/fingerprint-black-white-background-85504104.jpg",
+        "webpage": "https://www.dreamstime.com/stock-photo-fingerprint-black-white-background-image85504104",
+        "scanner": "",
+        "dpi": ""
+    },
+    "fp2": {
+        "url": "https://thumbs.dreamstime.com/z/fingerprint-10727646.jpg",
+        "webpage": "https://www.dreamstime.com/royalty-free-stock-image-fingerprint-image10727646",
+        "scanner": "",
+        "dpi": ""
+    },
+    "segm_test": {
+        "url": "https://gvpress.com/journals/IJBSBT/vol2_no4/5.pdf",
+        "webpage": "https://gvpress.com/journals/IJBSBT/vol2_no4/5.pdf",
+        "scanner": "",
+        "dpi": ""
+    }
+
+
+}

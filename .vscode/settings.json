@@ -1,0 +1,7 @@
+{
+    "python.linting.enabled": true,
+    "python.formatting.provider": "black",
+    "python.analysis.extraPaths": [
+        "./src/fingerprint_tools"
+    ],
+}
