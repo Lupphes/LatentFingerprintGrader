@@ -7,7 +7,11 @@ from .contrast_types import ContrastTypes
 class Fingerprint:
 	def __init__(self, path, contrast_type):
 		self.image = cv2.imread(path)
+		if self.image is None:
+			print('Could not open or find the image: ', path)
+			exit(0)
 		self.image_grayscaled = self.image2greyscale()
+		cv2.imshow('IMG2GREY', self.image_grayscaled)
 		self.image_grey_contrasted = self.computeContrast(type=contrast_type)
 
 		self.mask, self.masked_image = self.segmentation(self.image_grey_contrasted)
@@ -58,19 +62,27 @@ class Fingerprint:
 			cv2.imshow('CLAHE contrast', result)
 
 		elif type == ContrastTypes.MICHELSON:
-			img_yuv = cv2.cvtColor(self.image, cv2.COLOR_BGR2YUV)[:,:,0]
-			min = np.min(img_yuv)
-			max = np.max(img_yuv)
+			min = np.uint16(np.min(self.image_grayscaled))
+			max = np.uint16(np.max(self.image_grayscaled))
 
-			contrast = (max-min)/(max+min)
-			print(min,max,contrast)
+			# Contrast is (0,1)
+			contrast = (max-min) / (max+min)
+			# print('MICHELSON contrast: ', min, max, contrast) 
+			result = cv2.convertScaleAbs(self.image_grayscaled, alpha=contrast)
+			cv2.imshow('MICHELSON contrast', result)
 
 		elif type == ContrastTypes.WEBER:
 			pass
 
+		elif type == ContrastTypes.RMS:
+			# Not normalized image
+			# contrast = self.image2greyscale().std()
+			# result = cv2.convertScaleAbs(self.image_grayscaled, alpha=contrast)
+			# cv2.imshow('RMS contrast', result)
+			pass
+
 		else:
-			contrast = self.image2greyscale().std()
-			print(contrast)	
+			raise NotImplementedError("This part of program was not implemented yet. Wait for updates")
 
 		return result
 
