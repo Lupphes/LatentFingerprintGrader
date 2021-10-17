@@ -1,0 +1,14 @@
+Prejit na python 10
+
+
+
+Co probrat:
+Pravidelne schuzky
+Databaze
+Navrh pipeline
+Na co si dat pozor?
+Kde hledat informace/kde se ucit? Nejake dalsi knizky, prace na doporuceni?
+
+Mozne vlastni funkce
+Kontrast -> CLAHE (Contrast Limited Adaptive Histogram Equalization)
+Tvar fingerprintu, otaceni jednotlivych papilarnich liniis
