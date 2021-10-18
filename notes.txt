@@ -8,6 +8,7 @@ Databaze
 Navrh pipeline
 Na co si dat pozor?
 Kde hledat informace/kde se ucit? Nejake dalsi knizky, prace na doporuceni?
+Jake formaty pouzivat docetl jsem se o FBI standartu, mam mit nejake pozadavky od tech souboru?
 
 Mozne vlastni funkce
 Kontrast -> CLAHE (Contrast Limited Adaptive Histogram Equalization)
