@@ -1,13 +1,23 @@
-
+#!/usr/local/bin/python3.8
+# -*- coding: utf-8 -*-
 
 import os
-import cv2
+import argparse
+import sys
+import pathlib
 
-from fingerprint_tools import Fingerprint, FingerprintTools, ContrastTypes
+import fingerprint_tools as fp
 
-image_path = 'img/012_3_1.png'
-fingerprint_image = Fingerprint(path=image_path, contrast_type=ContrastTypes.CLAHE)
-fingerprint_image.show(name='Given fingerprint', scale=1.2)
 
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+def argumentParse():
+    pass
+
+
+def main(args):
+    """ Launcher for Fingerprint tool package """
+    fp.fingerprint.Fingerprint.grade_fingerprints()
+
+
+if __name__ == "__main__":
+    args = argumentParse()
+    main(args)

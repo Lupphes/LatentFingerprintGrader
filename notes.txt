@@ -13,3 +13,9 @@ Jake formaty pouzivat docetl jsem se o FBI standartu, mam mit nejake pozadavky o
 Mozne vlastni funkce
 Kontrast -> CLAHE (Contrast Limited Adaptive Histogram Equalization)
 Tvar fingerprintu, otaceni jednotlivych papilarnich liniis
+
+
+Poznamky k vyrobe:
+Potrebuju neco kde uchovavat databazy kterou uzivatel chce projekt a potom navrhnout tu pipeline
+
+Databaze na obrazky

@@ -1,7 +1,6 @@
-import logging
+from . import fingerprint
+from . import contrast_types
 
-from .fingerprint import Fingerprint
-from .fingerprint_tools import FingerprintTools
-from .contrast_types import ContrastTypes
+import logging
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
