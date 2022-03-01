@@ -16,7 +16,7 @@ def argumentParse():
 def main(args):
     """ Launcher for Fingerprint tool package """
 
-    image_path = 'img/012_3_1.png'
+    image_path = 'img/B111.png'
     fingerprint_image = fp.fingerprint.Fingerprint(path=image_path)
     fingerprint_image.grade_fingerprint()
 
