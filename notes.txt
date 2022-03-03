@@ -10,12 +10,31 @@ Na co si dat pozor?
 Kde hledat informace/kde se ucit? Nejake dalsi knizky, prace na doporuceni?
 Jake formaty pouzivat docetl jsem se o FBI standartu, mam mit nejake pozadavky od tech souboru?
 
+
+
+
+
+
+Schuzka ted:
+Jestli se muzeme domluvit na nejakych castejsich schuzkach popripade nekoho s kym muzu casteji konzultovat abych se do toho nezamotal jako ted
+Muzu pouzit knihovnu pro nalezeni latentniho obrazku, pro nalezeni markant?
+
+https://github.com/prip-lab/MSU-LatentAFIS
+https://github.com/Gus233/Latent-Fingerprint-Registration
+https://github.com/luannd/MinutiaeNet
+
+
 Mozne vlastni funkce
-Kontrast -> CLAHE (Contrast Limited Adaptive Histogram Equalization)
+Kontrast -> CLAHE (Contrast Limited Adaptive Histogram Equalization) a prumerny rozdil mezi ridges a pozadim
+Pocitani jednotlivych linek a zjistovani velikosti otisku prstu
+Zjistovani poctu jednotlivych markant a jednotlivych poru 
+Tloustka jednotlivych car - presne kriterium
+
+
 Tvar fingerprintu, otaceni jednotlivych papilarnich liniis
 
 
-Poznamky k vyrobe:
-Potrebuju neco kde uchovavat databazy kterou uzivatel chce projekt a potom navrhnout tu pipeline
 
-Databaze na obrazky
+Jaky by mel byt muj aktualni postup?
+
+

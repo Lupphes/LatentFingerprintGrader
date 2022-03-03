@@ -1,7 +1,7 @@
-from fileinput import filename
 import cv2
 import numpy as np
 import pickle
+from os.path import exists
 
 
 class Cartext:
@@ -9,7 +9,7 @@ class Cartext:
         self.image = image
 
     @staticmethod
-    def generateTexture(image, sigma=7):
+    def generateTexture(name, image, sigma=7):
 
         height, width = image.shape
         size = height * width
@@ -97,6 +97,12 @@ class Cartext:
 
         dif_v = np.asarray(np.around(dif_v * 255),
                            dtype=np.uint8).reshape(iHeight, iWidth)
+
+        with open(name + '_cartoon.pickle', 'wb') as handle:
+            pickle.dump(cartoon_v, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+        with open(name + '_texture.pickle', 'wb') as handle:
+            pickle.dump(dif_v, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
         return cartoon_v, dif_v
 
@@ -245,11 +251,20 @@ class Cartext:
         return w
 
     @staticmethod
-    def loadTexture(path):
-        with open(path + '_cartoon.pickle', 'rb') as handle:
-            cartoon = pickle.load(handle)
-        with open(path + '_texture.pickle', 'rb') as handle:
-            texture = pickle.load(handle)
+    def loadTexture(name, image, sigma=7):
+
+        path_texture = name + '_texture.pickle'
+        path_cartoon = name + '_cartoon.pickle'
+
+        if exists(path_texture) and exists(path_cartoon):
+            with open(path_cartoon, 'rb') as handle:
+                cartoon = pickle.load(handle)
+            with open(path_texture, 'rb') as handle:
+                texture = pickle.load(handle)
+        else:
+            print('Sorry but couldn\'t find cartex pickle files. Regenerating...')
+            cartoon, texture = Cartext.generateTexture(
+                name=name, image=image, sigma=sigma)
 
         return cartoon, texture
 
