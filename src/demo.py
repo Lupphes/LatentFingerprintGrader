@@ -16,7 +16,7 @@ def argumentParse():
 def main(args):
     """ Launcher for Fingerprint tool package """
 
-    image_latent = 'B111.png'
+    image_latent = 'B111.jp2'
     image_exemplar = '002-06.jp2'
 
     name = image_latent

@@ -25,33 +25,50 @@ class Fingerprint:
         return image
 
     def grade_fingerprint(self):
-        # texture = Image.apply_contrast().apply_sobel().apply_whatever()  # or split it up
-        # binary = Image.calculate_binary(self.grayscale)
-        # filteredBinary = Image.apply_gabor()  # optional
-
         self.filtered: Image = Image(self.grayscale.image)
 
+        # Get the texture from the library
+        self.filtered.apply_cartoon_texture(self.name, calculate=False)
+
+        # Apply histogram equalization and smooth the image
         self.filtered.apply_contrast(ContrastTypes.CLAHE)
-
-        # self.segmentation()
-
         self.filtered.apply_median(ksize=7)
 
+        # Create a mask which will remove some of the most noticable noise which the texture didn't catch
         test = Image(self.filtered.image)
-
-        # test.apply_box_filer(ksize=(41, 41))
         test.apply_gaussian()
-
         test.calculate_threshold(ThresholdFlags.GAUSSIAN)
-        # test.invert_binary()
+        test.invert_binary()
+        # cv2.imshow("test", test.image)
 
+        self.filtered.apply_sobel_2d()
         self.filtered.calculate_threshold(ThresholdFlags.GAUSSIAN)
-        # self.filtered.image = cv2.subtract(self.filtered.image, test.image)
+        self.filtered.image = cv2.subtract(self.filtered.image, test.image)
+        # cv2.imshow("self.filtered", self.filtered.image)
 
-        cv2.imshow("test", test.image)
+        # lala = Image(self.filtered.image)
+        # lala.invert_binary()
+
+        self.filtered.apply_box_filer(ksize=(41, 41))
+
+        self.filtered.calculate_threshold(ThresholdFlags.OTSU)
+        self.filtered.invert_binary()
+        # cv2.imshow("self.filteredBox", self.filtered.image)
+
+        masked = cv2.bitwise_and(
+            self.grayscale.image, self.grayscale.image, mask=self.filtered.image)
+
+        self.filtered.image = masked
+        # self.filtered.invert_binary()
+
+        self.filtered.apply_median(ksize=7)
+        self.filtered.apply_contrast(ContrastTypes.CLAHE)
+        self.filtered.calculate_threshold(ThresholdFlags.GAUSSIAN)
+
+        self.filtered.image = cv2.fastNlMeansDenoising(
+            self.filtered.image, h=40, templateWindowSize=7, searchWindowSize=21)
 
         # self.filtered.calculate_mask(self.filtered.image)
-        # self.filtered.apply_cartoon_texture(self.name + 'test', calculate=True)
 
         self.show()
 
