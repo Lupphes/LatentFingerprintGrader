@@ -142,3 +142,5 @@ src/fingerprint_tools/msu_latentafis/*
 
 models/
 # !src/fingerprint_tools/msu_latentafis/models/
+
+notes.txt

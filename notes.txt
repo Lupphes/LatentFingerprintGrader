@@ -54,4 +54,6 @@ https://github.com/gfiumara/MSU-LatentAFIS
 https://github.com/manuelaguadomtz/MSU-LatentAFIS/tree/dev
 
 
-Downgrade my version of python or 2 python scripts
+1. Make the paths relative
+2. Make the config more adapt or at least think about it
+3. Return values

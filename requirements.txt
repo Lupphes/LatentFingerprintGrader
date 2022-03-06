@@ -1,7 +1,7 @@
 autopep8==1.6.0
-opencv-contrib-python
-pycodestyle
-scipy
+opencv-contrib-python==4.5.5.62
+pycodestyle==2.8.0
+scipy==1.7.3
 toml==0.10.2
 absl-py==1.0.0
 astor==0.8.1
