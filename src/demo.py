@@ -25,7 +25,8 @@ def main(args):
 
     path = "img/" + name
     fingerprint_image = fp.fingerprint.Fingerprint(path=path, name=name)
-    fingerprint_image.grade_fingerprint()
+    # fingerprint_image.mus_afis_segmentation()
+    fingerprint_image.filter_fingerprint()
 
 
 if __name__ == "__main__":

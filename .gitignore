@@ -109,6 +109,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+venv37/
 
 # Spyder project settings
 .spyderproject
@@ -128,6 +129,16 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
+# VSCODE
 .vscode/
 
+# Temporary files
 GPUCache/
+*.pickle
+
+# MSU_latentAFIS
+src/fingerprint_tools/msu_latentafis/*
+!put_package_here.md
+
+models/
+# !src/fingerprint_tools/msu_latentafis/models/

@@ -41,3 +41,17 @@ Jaky by mel byt muj aktualni postup?
 https://www.hindawi.com/journals/scn/2018/4529652/#references
 https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7805758/#B46
 https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=6374593
+
+
+
+Python modern
+
+https://github.com/wajihullahbaig/MinutiaeNet
+https://github.com/jakubarendac/MinutiaeNet/tree/master
+https://github.com/manuelaguadomtz/MinutiaeNet/tree/dev
+
+https://github.com/gfiumara/MSU-LatentAFIS
+https://github.com/manuelaguadomtz/MSU-LatentAFIS/tree/dev
+
+
+Downgrade my version of python or 2 python scripts
