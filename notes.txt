@@ -54,6 +54,8 @@ https://github.com/gfiumara/MSU-LatentAFIS
 https://github.com/manuelaguadomtz/MSU-LatentAFIS/tree/dev
 
 
-1. Make the paths relative
-2. Make the config more adapt or at least think about it
-3. Return values
+1. Handle minutua values, think about what return values do you want
+2. Structure your work, delete what you don't need
+3. Argument parsing
+
+Basically do full process
