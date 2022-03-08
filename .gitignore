@@ -141,6 +141,8 @@ src/fingerprint_tools/msu_latentafis/*
 !put_package_here.md
 
 models/
-# !src/fingerprint_tools/msu_latentafis/models/
+# !src/fingerprint_tools/msu_latentafis/models/.
+
+test/
 
 notes.txt

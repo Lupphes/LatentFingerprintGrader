@@ -6,6 +6,7 @@ import os
 import argparse
 import sys
 import pathlib
+import pickle
 
 import fingerprint_tools as fp
 from fingerprint_tools.exception import ArrgumentError as ArrgumentError
@@ -24,7 +25,7 @@ def argumentParse():
     )
 
     parser.add_argument(
-        '-e', '--ext', help='extenstion of selected file', default='jp2'
+        '-e', '--ext', type=str, help='extenstion of selected file', default='jp2'
     )
 
     parser.add_argument(
@@ -33,6 +34,9 @@ def argumentParse():
     )
     parser.add_argument(
         '-d', '--ddir', type=pathlib.Path, help='Path to directory containing input images'
+    )
+    parser.add_argument(
+        '-r', '--regenerate', help='Regenerate the latent scan', action='store_true'
     )
 
     return parser.parse_args()
@@ -63,12 +67,29 @@ def set_envinronment(args):
 def main(args):
     """ Launcher for Fingerprint tool package """
 
+    lf_latent = None
+
     for filename in os.listdir(args.sdir):
         f = os.path.join(args.sdir, filename)
         if os.path.isfile(f) and pathlib.Path(f).suffix == '.' + args.ext:
+
+            specific_folder = os.path.join(args.ddir, filename)
+            if not os.path.exists(specific_folder):
+                os.mkdir(specific_folder)
+
             fingerprint_image = fp.fingerprint.Fingerprint(path=f)
-            fingerprint_image.mus_afis_segmentation(
-                image_path=f, destination_dir=args.ddir)
+            pickle_path = os.path.join(specific_folder, filename + '.pickle')
+            if args.regenerate or not os.path.exists(pickle_path):
+                lf_latent = fingerprint_image.mus_afis_segmentation(
+                    image_path=f, destination_dir=specific_folder, lf_latent=lf_latent)
+
+                with open(pickle_path, 'wb') as handle:
+                    pickle.dump(fingerprint_image, handle,
+                                protocol=pickle.HIGHEST_PROTOCOL)
+            else:
+                print("woah")
+                with open(pickle_path, 'rb') as handle:
+                    fingerprint_image = pickle.load(handle)
             fingerprint_image.grade_fingerprint()
             fingerprint_image.generate_rating()
 
