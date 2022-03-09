@@ -7,6 +7,7 @@ import argparse
 import sys
 import pathlib
 import pickle
+import glob
 
 import fingerprint_tools as fp
 from fingerprint_tools.exception import ArrgumentError as ArrgumentError
@@ -69,29 +70,39 @@ def main(args):
 
     lf_latent = None
 
-    for filename in os.listdir(args.sdir):
-        f = os.path.join(args.sdir, filename)
-        if os.path.isfile(f) and pathlib.Path(f).suffix == '.' + args.ext:
+    inputpath = args.sdir
+    outputpath = args.ddir
 
-            specific_folder = os.path.join(args.ddir, filename)
-            if not os.path.exists(specific_folder):
-                os.mkdir(specific_folder)
+    for dirpath, dirnames, filenames in os.walk(inputpath):
+        for file in filenames:
+            structure = os.path.join(
+                outputpath, os.path.relpath(dirpath, inputpath))
+            if not os.path.isdir(structure):
+                os.mkdir(structure)
+            sub_dir = os.path.join(structure, file)
+            if pathlib.Path(sub_dir).suffix == '.' + args.ext:
+                source_image = os.path.join(dirpath, file)
+                image_dir = os.path.join(os.path.dirname(sub_dir), file)
+                if not os.path.isdir(image_dir):
+                    os.mkdir(image_dir)
 
-            fingerprint_image = fp.fingerprint.Fingerprint(path=f)
-            pickle_path = os.path.join(specific_folder, filename + '.pickle')
-            if args.regenerate or not os.path.exists(pickle_path):
-                lf_latent = fingerprint_image.mus_afis_segmentation(
-                    image_path=f, destination_dir=specific_folder, lf_latent=lf_latent)
+                fingerprint_image = fp.fingerprint.Fingerprint(
+                    path=source_image)
+                pickle_path = os.path.join(image_dir, file + '.pickle')
+                if args.regenerate or not os.path.exists(pickle_path):
+                    lf_latent = fingerprint_image.mus_afis_segmentation(
+                        image_path=source_image, destination_dir=image_dir, lf_latent=lf_latent)
 
-                with open(pickle_path, 'wb') as handle:
-                    pickle.dump(fingerprint_image, handle,
-                                protocol=pickle.HIGHEST_PROTOCOL)
-            else:
-                print("woah")
-                with open(pickle_path, 'rb') as handle:
-                    fingerprint_image = pickle.load(handle)
-            fingerprint_image.grade_fingerprint()
-            fingerprint_image.generate_rating()
+                    with open(pickle_path, 'wb') as handle:
+                        pickle.dump(fingerprint_image, handle,
+                                    protocol=pickle.HIGHEST_PROTOCOL)
+                    pass
+                else:
+                    print("woah")
+                    with open(pickle_path, 'rb') as handle:
+                        fingerprint_image = pickle.load(handle)
+                fingerprint_image.grade_fingerprint()
+                fingerprint_image.generate_rating()
 
 
 if __name__ == "__main__":

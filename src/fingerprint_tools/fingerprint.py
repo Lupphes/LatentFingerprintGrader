@@ -25,7 +25,7 @@ class Fingerprint:
         return image
 
     def mus_afis_segmentation(self, image_path, destination_dir, lf_latent=None):
-        from .msu_latentafis.extraction_latent import main_single_image, get_feature_extractor
+        from .msu_latentafis.extraction_latent import get_feature_extractor
         if lf_latent == None:
             lf_latent = get_feature_extractor()
 
@@ -66,7 +66,8 @@ class Fingerprint:
         pass
 
     def generate_rating(self):
-        self.show()
+        # self.show()
+        pass
 
     def show(self):
         # Image.show(self.raw.image, "Raw", scale=0.5)
@@ -75,9 +76,9 @@ class Fingerprint:
         # Image.show(self.binary.image, "Binary", scale=0.5)
 
         print("Test data:\n")
-        Image.show(self.mask, scale=0.5)
-        Image.show(self.aec, scale=0.5)
-        Image.show(self.bin_image, scale=0.5)
+        Image.show(self.mask, "Mask", scale=0.5)
+        Image.show(self.aec, "AEC", scale=0.5)
+        Image.show(self.bin_image, "Bin image", scale=0.5)
         # print(lf_latent.minu_model)
         # print(lf_latent.minutiae_sets)
 
