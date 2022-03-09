@@ -77,32 +77,32 @@ def main(args):
         for file in filenames:
             structure = os.path.join(
                 outputpath, os.path.relpath(dirpath, inputpath))
-            if not os.path.isdir(structure):
-                os.mkdir(structure)
             sub_dir = os.path.join(structure, file)
             if pathlib.Path(sub_dir).suffix == '.' + args.ext:
+                if not os.path.isdir(structure):
+                    os.makedirs(structure)
                 source_image = os.path.join(dirpath, file)
                 image_dir = os.path.join(os.path.dirname(sub_dir), file)
                 if not os.path.isdir(image_dir):
                     os.mkdir(image_dir)
 
-                fingerprint_image = fp.fingerprint.Fingerprint(
-                    path=source_image)
-                pickle_path = os.path.join(image_dir, file + '.pickle')
-                if args.regenerate or not os.path.exists(pickle_path):
-                    lf_latent = fingerprint_image.mus_afis_segmentation(
-                        image_path=source_image, destination_dir=image_dir, lf_latent=lf_latent)
+                # fingerprint_image = fp.fingerprint.Fingerprint(
+                #     path=source_image)
+                # pickle_path = os.path.join(image_dir, file + '.pickle')
+                # if args.regenerate or not os.path.exists(pickle_path):
+                #     lf_latent = fingerprint_image.mus_afis_segmentation(
+                #         image_path=source_image, destination_dir=image_dir, lf_latent=lf_latent)
 
-                    with open(pickle_path, 'wb') as handle:
-                        pickle.dump(fingerprint_image, handle,
-                                    protocol=pickle.HIGHEST_PROTOCOL)
-                    pass
-                else:
-                    print("woah")
-                    with open(pickle_path, 'rb') as handle:
-                        fingerprint_image = pickle.load(handle)
-                fingerprint_image.grade_fingerprint()
-                fingerprint_image.generate_rating()
+                #     with open(pickle_path, 'wb') as handle:
+                #         pickle.dump(fingerprint_image, handle,
+                #                     protocol=pickle.HIGHEST_PROTOCOL)
+                #     pass
+                # else:
+                #     print("woah")
+                #     with open(pickle_path, 'rb') as handle:
+                #         fingerprint_image = pickle.load(handle)
+                # fingerprint_image.grade_fingerprint()
+                # fingerprint_image.generate_rating()
 
 
 if __name__ == "__main__":
