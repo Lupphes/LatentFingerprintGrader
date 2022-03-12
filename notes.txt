@@ -54,6 +54,9 @@ https://github.com/gfiumara/MSU-LatentAFIS
 https://github.com/manuelaguadomtz/MSU-LatentAFIS/tree/dev
 
 
+rozdil v kontrastu a na zaklade toho zjistit chyby algoritmu
+
+
 1. Handle minutua values, think about what return values do you want
 2. Structure your work, delete what you don't need
 3. Argument parsing

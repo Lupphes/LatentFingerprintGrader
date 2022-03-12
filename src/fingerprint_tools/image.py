@@ -66,7 +66,8 @@ class Image:
             contrast = (max-min) / (max+min)
             self.image = cv2.convertScaleAbs(self.image, alpha=contrast)
         elif contrast_type == ContrastTypes.RMS:
-            pass
+            contrast = self.image.std()
+            self.image = cv2.convertScaleAbs(self.image, alpha=contrast)
         else:
             raise NotImplementedError(
                 "This part of program was not implemented yet. Wait for updates")
