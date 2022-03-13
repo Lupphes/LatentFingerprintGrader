@@ -25,9 +25,9 @@ https://github.com/luannd/MinutiaeNet
 
 
 Mozne vlastni funkce
-Kontrast -> CLAHE (Contrast Limited Adaptive Histogram Equalization) a prumerny rozdil mezi ridges a pozadim
+Kontrast -> CLAHE (Contrast Limited Adaptive Histogram Equalization) a prumerny rozdil mezi ridges a pozadim -- Done
 Pocitani jednotlivych linek a zjistovani velikosti otisku prstu
-Zjistovani poctu jednotlivych markant a jednotlivych poru 
+Zjistovani poctu jednotlivych markant a jednotlivych poru  -- Done
 Tloustka jednotlivych car - presne kriterium
 
 

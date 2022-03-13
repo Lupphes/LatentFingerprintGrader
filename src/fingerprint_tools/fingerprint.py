@@ -138,25 +138,55 @@ class Fingerprint:
         self.bin_image.invert_binary()
 
     def grade_lines(self):
+        mask_ridges = Image(cv2.bitwise_and(
+            self.bin_image.image, self.bin_image.image, mask=self.mask.image))
 
-        # for x in range(self.bin_image.image.shape[1]):
-        #     for y in self.bin_image.image[:, x]:
-        #         print(y)
+        row, col = mask_ridges.image.shape
+        thickness = 2
+        color = (255, 0, 0)
+        mask_ridges_color = cv2.cvtColor(mask_ridges.image, cv2.COLOR_GRAY2RGB)
 
+        mask_ridges_color_horizontal = mask_ridges_color.copy()
+        mask_ridges_color_vertical = mask_ridges_color.copy()
+
+        horizontal_count = []
         count = 0
-        # for x in range(int(self.bin_image.image.shape[0] / 16)):
-        #     for y in range(self.bin_image.image.shape[1]):
-        #         if y + 1 < self.bin_image.image.shape[1]:
-        #             if self.bin_image.image[x, y] == 255 and self.bin_image.image[x, y + 1] == 0:
-        #                 count += 1
-        #     print(count)
-        #     count = 0
+        for x in range(0, row, 16):
+            for y in range(col):
+                if y + 1 < col:
+                    if mask_ridges.image[x, y] == 0 and mask_ridges.image[x, y + 1] == 255:
+                        count += 1
+            if count != 0:
+                startpoint = (0, x)
+                endpoint = (col, x)
+                cv2.line(mask_ridges_color_horizontal, startpoint,
+                         endpoint, color, thickness)
+                horizontal_count.append(count)
+                count = 0
 
-        # if y == 1:  # flag -- black = 1, white = 0
-        #     if self.bin_image.image[x, y] == 255:
-        #         count = 0
-        #     else:
-        #         count = 1
+        Image.show(mask_ridges_color_horizontal, "Blue Horizontal", scale=0.5)
+
+        vertical_count = []
+        count = 0
+        for y in range(0, col, 16):
+            for x in range(row):
+                if x + 1 < row:
+                    if mask_ridges.image[x, y] == 0 and mask_ridges.image[x + 1, y] == 255:
+                        count += 1
+            if count != 0:
+                startpoint = (y, 0)
+                endpoint = (y, row)
+                cv2.line(mask_ridges_color_vertical, startpoint,
+                         endpoint, color, thickness)
+                vertical_count.append(count)
+                count = 0
+
+        Image.show(mask_ridges_color_vertical, "Blue Vertical", scale=1)
+        print(vertical_count)
+        print(horizontal_count)
+
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
 
     def grade_thickness(self):
         pass
