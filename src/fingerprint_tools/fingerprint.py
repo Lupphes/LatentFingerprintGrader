@@ -6,7 +6,7 @@ import pickle
 import json
 
 from .contrast_types import ContrastTypes, ThresholdFlags
-from .definitions import MinutuaeThreshold, RMSEThreshold
+from .definitions import MinutuaeThreshold, RMSEThreshold, NumberOfRidgesThreshold
 from .exception import FileError
 from .image import Image
 
@@ -130,8 +130,8 @@ class Fingerprint:
             rmse_description = "The contrast has proven that the fingerprint is not valid"
 
         self.json['contrast'] = {
-            "rmse": str(rmse),
-            "michelson_contrast": str(michelson_contrast),
+            "rmse": float(rmse),
+            "michelson_contrast": float(michelson_contrast),
             "description": rmse_description
         }
 
@@ -146,10 +146,14 @@ class Fingerprint:
         color = (255, 0, 0)
         mask_ridges_color = cv2.cvtColor(mask_ridges.image, cv2.COLOR_GRAY2RGB)
 
+        sample_size = 3
+
         mask_ridges_color_horizontal = mask_ridges_color.copy()
         mask_ridges_color_vertical = mask_ridges_color.copy()
 
+        horizontal = []
         horizontal_count = []
+        horizontal_axie = []
         count = 0
         for x in range(0, row, 16):
             for y in range(col):
@@ -161,12 +165,22 @@ class Fingerprint:
                 endpoint = (col, x)
                 cv2.line(mask_ridges_color_horizontal, startpoint,
                          endpoint, color, thickness)
-                horizontal_count.append(count)
+                cv2.line(mask_ridges_color, startpoint,
+                         endpoint, color, thickness)
+                horizontal.append(count)
+                if (len(horizontal_count) <= sample_size):
+                    horizontal_count.append(count)
+                    horizontal_axie.append(x)
+                else:
+                    if min(horizontal_count) < count:
+                        index = horizontal_count.index(min(horizontal_count))
+                        horizontal_count[index] = count
+                        horizontal_axie[index] = x
                 count = 0
 
-        Image.show(mask_ridges_color_horizontal, "Blue Horizontal", scale=0.5)
-
+        vertical = []
         vertical_count = []
+        vertical_axie = []
         count = 0
         for y in range(0, col, 16):
             for x in range(row):
@@ -178,12 +192,62 @@ class Fingerprint:
                 endpoint = (y, row)
                 cv2.line(mask_ridges_color_vertical, startpoint,
                          endpoint, color, thickness)
-                vertical_count.append(count)
+                cv2.line(mask_ridges_color, startpoint,
+                         endpoint, color, thickness)
+                vertical.append(count)
+                if (len(vertical_count) <= sample_size):
+                    vertical_count.append(count)
+                    vertical_axie.append(y)
+                else:
+                    if min(vertical_count) <= count:
+                        index = vertical_count.index(min(vertical_count))
+                        vertical_count[index] = count
+                        vertical_axie[index] = y
                 count = 0
 
-        Image.show(mask_ridges_color_vertical, "Blue Vertical", scale=1)
-        print(vertical_count)
-        print(horizontal_count)
+        color = (0, 255, 0)
+
+        dicto = {}
+        for i in range(sample_size):
+            startpoint = (0, horizontal_axie[i])
+            endpoint = (col, horizontal_axie[i])
+            cv2.line(mask_ridges_color_horizontal, startpoint,
+                     endpoint, color, thickness)
+            cv2.line(mask_ridges_color, startpoint,
+                     endpoint, color, thickness)
+            startpoint = (vertical_axie[i], 0)
+            endpoint = (vertical_axie[i], row)
+            cv2.line(mask_ridges_color_vertical, startpoint,
+                     endpoint, color, thickness)
+            cv2.line(mask_ridges_color, startpoint,
+                     endpoint, color, thickness)
+            dicto[f"{vertical_axie[i]}:{horizontal_axie[i]}"] = [
+                vertical_count[i], horizontal_count[i]]
+
+        Image.show(mask_ridges_color_vertical, "Blue Vertical", scale=0.5)
+        Image.show(mask_ridges_color_horizontal, "Blue Horizontal", scale=0.5)
+        Image.show(mask_ridges_color, "Blue Lines", scale=1)
+
+        total_mean = np.mean(np.concatenate([horizontal, vertical]))
+        description = ""
+
+        if total_mean > NumberOfRidgesThreshold.EXCELENT:
+            description = "Fingerprint has a great number of papillary ridges"
+        elif total_mean > NumberOfRidgesThreshold.GOOD:
+            description = "Fingerprint has a good amount of papillary ridges"
+        elif total_mean > NumberOfRidgesThreshold.ENOUGH:
+            description = "Fingerprint has enough papillary ridges for identification"
+        else:
+            description = "Fingerprint does not have enough papillary ridges for identification"
+
+        self.json['papilary_ridges'] = {
+            "higest_frequency": dicto,
+            "vertical_mean": np.mean(vertical),
+            "horizontal_mean": np.mean(horizontal),
+            "total_mean": total_mean,
+            "expected_core": [np.mean(vertical_axie), np.mean(horizontal_axie)],
+            "description": description
+        }
 
         cv2.waitKey(0)
         cv2.destroyAllWindows()

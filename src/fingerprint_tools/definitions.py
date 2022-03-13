@@ -8,3 +8,10 @@ class MinutuaeThreshold(IntEnum):
 
 class RMSEThreshold(float, Enum):
     VALID = 1.5
+
+
+class NumberOfRidgesThreshold(IntEnum):
+    EXCELENT = 30
+    GOOD = 20
+    ENOUGH = 15
+    POOR = 5
