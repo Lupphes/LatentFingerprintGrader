@@ -107,3 +107,8 @@ class Image:
             image = cv2.resize(
                 image, dimensions, interpolation=cv2.INTER_AREA)
         cv2.imshow(name, image)
+
+    @staticmethod
+    def save(image, path, name, ext):
+        fname = os.path.join(path, name + ext)
+        cv2.imwrite(fname, image)

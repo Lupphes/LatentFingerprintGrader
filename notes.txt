@@ -62,3 +62,12 @@ rozdil v kontrastu a na zaklade toho zjistit chyby algoritmu
 3. Argument parsing
 
 Basically do full process
+
+Average thickness of papilary lines is 0.33 mm and valleys as well
+R_DPI
+N_PIX
+
+Th = 2.54/R_DPI  * N_PIX
+
+
+pricny k jednotlivym linkam otisku

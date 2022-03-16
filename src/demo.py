@@ -103,6 +103,7 @@ def main(args):
                         fingerprint_image = pickle.load(handle)
                 fingerprint_image.grade_fingerprint()
                 fingerprint_image.generate_rating(os.path.dirname(image_dir))
+                fingerprint_image.generate_images(image_dir, ".jpeg")
 
 
 if __name__ == "__main__":
