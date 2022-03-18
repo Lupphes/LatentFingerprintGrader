@@ -1,123 +1,148 @@
-#!/usr/local/bin/python3.8
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python3.7
+# coding: utf-8
 
-from ast import arg
 import os
 import argparse
-import sys
-import pathlib
+from pathlib import Path
 import pickle
-import glob
-import matplotlib.pylab as plt
+import typing
+
 
 import fingerprint_tools as fp
 from fingerprint_tools.exception import ArrgumentError as ArrgumentError
 
 
-def argumentParse():
-    """ Parse the arguments """
+def argument_parse() -> argparse.ArgumentParser:
+    """ 
+    Parse the arguments for the whole script and 
+    pass them to main
+    """
+
     parser = argparse.ArgumentParser(
         add_help=True,
-        prog="demo",
-        description='Demo for ..., Author: Ondřej Sloup (xsloup02)'
-    )
-
-    parser.add_argument(
-        '-g', '--gpu', help='comma separated list of GPU(s) to use.', default='0'
-    )
-
-    parser.add_argument(
-        '-e', '--ext', type=str, help='extenstion of selected file', default='jp2'
-    )
-
-    parser.add_argument(
-        '-s', '--sdir', type=pathlib.Path,
-        help='Path to location where extracted templates should be stored', required=True
+        prog="LatFigGre",
+        description='LatFigGre (Latent Fingerprint Grader) 2022, Author: Ondřej Sloup (xsloup02)'
     )
     parser.add_argument(
-        '-d', '--ddir', type=pathlib.Path, help='Path to directory containing input images'
+        '-g', '--gpu', type=str, help='Comma-separated list of graphic cards which the script will use for msu_afis.', default='0'
     )
     parser.add_argument(
-        '-r', '--regenerate', help='Regenerate the latent scan', action='store_true'
+        '-e', '--ext', type=str, help='File extension to which format the script will generate the output images as.', default='jp2'
     )
     parser.add_argument(
-        '-p', '--dpi', type=int, help='DPI of the images', default=500
+        '-s', '--sdir', type=Path,
+        help='Path to the destination folder, where the source images should be.', required=True
+    )
+    parser.add_argument(
+        '-d', '--ddir', type=Path, help='Path to the destination folder, where the script will store fingerprint images and logs.'
+    )
+    parser.add_argument(
+        '-r', '--regenerate', help='Flag to regenerate already computed fingerprints (their pickle files) despite their existence.', action='store_true'
+    )
+    parser.add_argument(
+        '-p', '--dpi', type=int, help='DPI (Dots per inch) under which the scanner scanned the fingerprints. By default 500.', default=500
     )
 
     return parser.parse_args()
 
 
-def set_envinronment(args):
+def set_envinronment(args) -> None:
+    """ 
+    Prepares the python environment for packages and sets essential 
+    variables for the MSU_AFIS package, and prepares arguments 
+    and directory structure
+    """
+
+    # Sets GPU for neural network
     if args.gpu:
         os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
+
+    # JASPER (JP2000) has vulnerabilities and needs
+    # to be explicitely turned on
+    # https://github.com/opencv/opencv/issues/14058
     if args.ext == "jp2":
         os.environ['OPENCV_IO_ENABLE_JASPER'] = "true"
+        print(
+            'Jasper project has many opened vulnerabilities. Beware what are you opening!')
 
     # Setting environment vars for tensorflow
     os.environ['KERAS_BACKEND'] = 'tensorflow'
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
-    # Switching matplotlib backend
+    # Switch to matplotlib agg backend
+    import matplotlib.pyplot as plt
     plt.switch_backend('agg')
 
-    if not os.path.exists(args.sdir):
-        raise ArrgumentError("Specified path doesn't exist")
-
+    # Creates output folder if not specified
     if args.ddir == None:
-        i = 0
-        while os.path.exists(os.path.basename(args.sdir) + "_out_" + str(i)):
+        i: int = 0
+        args.ddir = (args.sdir).with_name(args.sdir.name + f'_out_{i}')
+        while args.ddir.exists():
             i += 1
-        os.mkdir(os.path.join(os.path.dirname(args.sdir), os.path.basename(
-            args.sdir) + "_out_" + str(i)))
-        args.ddir = pathlib.Path(
-            os.path.basename(args.sdir) + "_out_" + str(i))
-
-    if not os.path.exists(args.ddir):
-        os.mkdir(args.ddir)
+            args.ddir = (args.sdir).with_name(args.sdir.name + f'_out_{i}')
 
 
-def main(args):
-    """ Launcher for Fingerprint tool package """
+def main(args) -> None:
+    """ 
+    Main function of LatFigGre (Latent Fingerprint Grader) 
+    Ondřej Sloup (xsloup02)
+    Algorithmic Evaluation of the Quality of Dactyloscopic Traces
+    Bachelor's Thesis 2022
 
-    lf_latent = None
+    Launch the script and recursively go through the given folders
+    and generate log.json with fingerprint evaluation
 
-    inputpath = args.sdir
-    outputpath = args.ddir
+    """
 
-    for dirpath, dirnames, filenames in os.walk(inputpath):
+    # Variable for MSU_AFIS package
+    # Used to load into memory just once
+    msu_afis = None
+
+    path_input: Path = args.sdir
+    path_output: Path = args.ddir
+
+    for dirpath, _, filenames in os.walk(path_input):
         for file in filenames:
-            structure = os.path.join(
-                outputpath, os.path.relpath(dirpath, inputpath))
-            sub_dir = os.path.join(structure, file)
-            if pathlib.Path(sub_dir).suffix == '.' + args.ext:
-                if not os.path.isdir(structure):
-                    os.makedirs(structure)
-                source_image = os.path.join(dirpath, file)
-                image_dir = os.path.join(os.path.dirname(sub_dir), file)
-                if not os.path.isdir(image_dir):
-                    os.mkdir(image_dir)
+            structure: str = os.path.join(
+                path_output, os.path.relpath(dirpath, path_input))
+            sub_dir: str = os.path.join(structure, file)
 
-                fingerprint_image = fp.fingerprint.Fingerprint(
-                    path=source_image, dpi=args.dpi)
-                pickle_path = os.path.join(image_dir, file + '.pickle')
-                if args.regenerate or not os.path.exists(pickle_path):
-                    lf_latent = fingerprint_image.mus_afis_segmentation(
-                        image_path=source_image, destination_dir=image_dir, lf_latent=lf_latent)
+            if Path(sub_dir).suffix == '.' + args.ext:
 
-                    with open(pickle_path, 'wb') as handle:
+                path_image_src: str = os.path.join(dirpath, file)
+                path_img_des_dir: str = os.path.join(
+                    os.path.dirname(sub_dir), file)
+                path_pickle: str = os.path.join(
+                    path_img_des_dir, file + '.pickle')
+
+                if not os.path.isdir(path_img_des_dir):
+                    os.makedirs(path_img_des_dir)
+
+                # Create a fingerprint object
+                fingerprint_image: fp.fingerprint.Fingerprint = fp.fingerprint.Fingerprint(
+                    path=path_image_src, dpi=args.dpi)
+
+                # Restore or generate pickle file for faster calculation
+                if args.regenerate or not os.path.exists(path_pickle):
+                    msu_afis = fingerprint_image.mus_afis_segmentation(
+                        image_path=path_image_src, destination_dir=path_img_des_dir, lf_latent=msu_afis)
+
+                    with open(path_pickle, 'wb') as handle:
                         pickle.dump(fingerprint_image, handle,
                                     protocol=pickle.HIGHEST_PROTOCOL)
-                    pass
                 else:
-                    print("woah")
-                    with open(pickle_path, 'rb') as handle:
+                    with open(path_pickle, 'rb') as handle:
                         fingerprint_image = pickle.load(handle)
+
+                # Grade fingerprint, rating and images
                 fingerprint_image.grade_fingerprint()
-                fingerprint_image.generate_rating(os.path.dirname(image_dir))
-                fingerprint_image.generate_images(image_dir, ".jpeg")
+                fingerprint_image.generate_rating(
+                    os.path.dirname(path_img_des_dir))
+                fingerprint_image.generate_images(
+                    path_img_des_dir, ".jpeg")  # args.ext
 
 
 if __name__ == "__main__":
-    args = argumentParse()
+    args = argument_parse()
     set_envinronment(args)
     main(args)
