@@ -8,6 +8,7 @@ import sys
 import pathlib
 import pickle
 import glob
+import matplotlib.pylab as plt
 
 import fingerprint_tools as fp
 from fingerprint_tools.exception import ArrgumentError as ArrgumentError
@@ -39,6 +40,9 @@ def argumentParse():
     parser.add_argument(
         '-r', '--regenerate', help='Regenerate the latent scan', action='store_true'
     )
+    parser.add_argument(
+        '-p', '--dpi', type=int, help='DPI of the images', default=500
+    )
 
     return parser.parse_args()
 
@@ -48,6 +52,13 @@ def set_envinronment(args):
         os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
     if args.ext == "jp2":
         os.environ['OPENCV_IO_ENABLE_JASPER'] = "true"
+
+    # Setting environment vars for tensorflow
+    os.environ['KERAS_BACKEND'] = 'tensorflow'
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+
+    # Switching matplotlib backend
+    plt.switch_backend('agg')
 
     if not os.path.exists(args.sdir):
         raise ArrgumentError("Specified path doesn't exist")
@@ -87,7 +98,7 @@ def main(args):
                     os.mkdir(image_dir)
 
                 fingerprint_image = fp.fingerprint.Fingerprint(
-                    path=source_image)
+                    path=source_image, dpi=args.dpi)
                 pickle_path = os.path.join(image_dir, file + '.pickle')
                 if args.regenerate or not os.path.exists(pickle_path):
                     lf_latent = fingerprint_image.mus_afis_segmentation(
