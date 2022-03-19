@@ -1,3 +1,4 @@
+from __future__ import annotations
 import os
 import cv2
 import numpy as np
@@ -95,6 +96,9 @@ class Image:
         self.image = cv2.boxFilter(self.image, ddepth, ksize, anchor=anchor,
                                    normalize=normalize, borderType=cv2.BORDER_DEFAULT)
 
+    def apply_mask(self, mask: 'Image') -> None:
+        self.image = cv2.bitwise_and(self.image, self.image, mask=mask.image)
+
     @staticmethod
     def show(image, name="Image", scale=1.0):
         if scale != 1.0:
@@ -109,3 +113,8 @@ class Image:
     def save(image, path, name, ext):
         fname = os.path.join(path, name + ext)
         cv2.imwrite(fname, image)
+
+    @staticmethod
+    def save_fig(figure, path, name, ext):
+        fname = os.path.join(path, name + ext)
+        figure.savefig(fname)

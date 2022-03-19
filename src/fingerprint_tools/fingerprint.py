@@ -6,8 +6,8 @@ import pickle
 import json
 import math
 from matplotlib import pyplot as plt
-from scipy import integrate
-import scipy.signal as ss
+from scipy.integrate import simpson
+from scipy.signal import butter, filtfilt
 import logging
 from datetime import datetime
 
@@ -24,6 +24,7 @@ class Fingerprint:
     def __init__(self, path, dpi):
         self.name: str = Path(path).name
         self.dpi: int = dpi
+        self.block_size: int = 16
 
         self.raw: Image = Image(image=self.read_raw_image(path))
 
@@ -38,7 +39,7 @@ class Fingerprint:
         # self.json: Report = Report()
         self.json: Dict = {}
 
-    def read_raw_image(self, path: Path, block_size=16) -> np.ndarray:
+    def read_raw_image(self, path: Path, block_size=None) -> np.ndarray:
         """
         Reads the raw image from the given path and 
         parse them into 16 dividable shape and therefore 
@@ -55,6 +56,8 @@ class Fingerprint:
 
             return image[:blockR * block_size, :blockC * block_size]
 
+        if block_size == None:
+            block_size: int = self.block_size
         image = cv2.imread(path)
         if image is None:
             raise FileError()
@@ -87,8 +90,14 @@ class Fingerprint:
         return extractor_class
 
     def generate_helpers(self) -> None:
+        self.aec_masked = Image(cv2.bitwise_and(
+            self.aec.image, self.aec.image, mask=self.mask.image))
+
         self.bin_image_masked = Image(cv2.bitwise_and(
             self.bin_image.image, self.bin_image.image, mask=self.mask.image))
+
+        self.grayscale_masked = Image(cv2.bitwise_and(
+            self.grayscale.image, self.grayscale.image, mask=self.mask.image))
 
         self.grayscale_clahe_masked = Image(cv2.bitwise_and(
             self.grayscale_clahe.image, self.grayscale_clahe.image, mask=self.mask.image))
@@ -99,10 +108,10 @@ class Fingerprint:
         self.grade_lines()
 
         cx, cy = self.get_center_cords()
-        line, count = self.get_pependicular(cx, cy)
+        line_signal, _ = self.get_pependicular(cx, cy)
 
-        ridge = self.grade_sinusoidal(line, count)
-        self.grade_thickness(line, ridge)
+        self.grade_sinusoidal(line_signal)
+        self.grade_thickness(line_signal)
 
     def grade_minutiae_points(self, thresh=2) -> None:
         if 0 > thresh or thresh > 3:
@@ -122,39 +131,44 @@ class Fingerprint:
         else:
             text_description = "Not enough minutiae points for identification"
 
+        # TODO: Add points to JSON
         self.json['minutuae_points'] = {
             "quantity": number_of_cmp,
             "description": text_description
         }
 
     def grade_contrast(self) -> None:
-        mask_ridges = Image(cv2.bitwise_and(
-            self.bin_image.image, self.bin_image.image, mask=self.mask.image))
+        # TODO: Improve Michaleson, Weber?, Calculate michelson with mask
 
-        self.bin_image.invert_binary()
+        # Create mask with valleys and ridges
+        mask_ridges = Image(self.bin_image_masked.image)
 
-        mask_valleys = Image(cv2.bitwise_and(
-            self.bin_image.image, self.bin_image.image, mask=self.mask.image))
+        mask_valleys = Image(self.bin_image.image)
+        mask_valleys.invert_binary()
+        mask_valleys.apply_mask(self.mask)
 
-        extracted_ridges = Image(cv2.bitwise_and(self.grayscale_clahe.image,
-                                                 self.grayscale_clahe.image, mask=mask_ridges.image))
+        # Extracted them from the image
+        extracted_ridges = Image(self.grayscale_clahe.image)
+        extracted_ridges.apply_mask(mask_ridges)
 
-        extracted_valleys = Image(cv2.bitwise_and(self.grayscale_clahe.image,
-                                                  self.grayscale_clahe.image, mask=mask_valleys.image))
+        extracted_valleys = Image(self.grayscale_clahe.image)
+        extracted_valleys.apply_mask(mask_valleys)
 
-        mask_ridges_wblack = self.grayscale_clahe.image[np.where(
-            mask_ridges.image == 255)]
-        mask_valleys_wblack = self.grayscale_clahe.image[np.where(
-            mask_valleys.image == 255)]
+        # Michelson contrast
+        # Source: https://stackoverflow.com/questions/57256159/how-extract-contrast-level-of-a-photo-opencv
+        kernel = np.ones((4, 4), np.uint8)
+        reg_min = cv2.erode(self.grayscale_clahe.image, kernel, iterations=1)
+        reg_max = cv2.dilate(self.grayscale_clahe.image, kernel, iterations=1)
 
-        valleys_minimum = np.uint16(np.min(mask_valleys_wblack, axis=0))
-        ridges_maximum = np.uint16(np.max(mask_ridges_wblack, axis=0))
+        reg_min = reg_min.astype(np.float64)
+        reg_max = reg_max.astype(np.float64)
+        michelson_contrast = (reg_max - reg_min) / (reg_max + reg_min)
+        michelson_contrast = 100 * np.mean(michelson_contrast)
 
-        michelson_contrast = (ridges_maximum-valleys_minimum) / \
-            (ridges_maximum+valleys_minimum)
-
-        rmse = np.square(np.subtract(
-            extracted_ridges.image, extracted_valleys.image)).mean()
+        # Root Mean Square Error
+        # Calculates the difference between colours of ridges and valleys
+        rmse: np.float64 = np.mean(np.square(np.subtract(
+            extracted_ridges.image, extracted_valleys.image)))
 
         rmse_description = ""
 
@@ -165,97 +179,109 @@ class Fingerprint:
 
         self.json['contrast'] = {
             "rmse": float(rmse),
-            "michelson_contrast": float(michelson_contrast),
+            "michelson_contrast_pct": float(michelson_contrast),
             "description": rmse_description
         }
 
-        self.bin_image.invert_binary()
+    def grade_lines(self, draw=True) -> None:
+        # TODO: Calculate bounding box, Normalize count
 
-    def grade_lines(self) -> None:
-        mask_ridges = Image(cv2.bitwise_and(
-            self.bin_image.image, self.bin_image.image, mask=self.mask.image))
-
+        # Define new copy of image
+        mask_ridges = Image(self.bin_image_masked.image)
         row, col = mask_ridges.image.shape
+        sample_line_len = 3
+
+        # Define properties for output images
         thickness = 2
         color = (255, 0, 0)
         mask_ridges_color = cv2.cvtColor(mask_ridges.image, cv2.COLOR_GRAY2RGB)
-
-        sample_size = 3
-
         mask_ridges_color_horizontal = mask_ridges_color.copy()
         mask_ridges_color_vertical = mask_ridges_color.copy()
 
+        # Count number of horizontal lines
         horizontal = []
         horizontal_count = []
-        horizontal_axie = []
+        horizontal_axis = []
         count = 0
+        is_on_ridge = False
         for x in range(0, row, 16):
             for y in range(col):
-                if y + 1 < col:
-                    if mask_ridges.image[x, y] == 0 and mask_ridges.image[x, y + 1] == 255:
-                        count += 1
+                if y + 1 < col and mask_ridges.image[x, y] == 255 and mask_ridges.image[x, y + 1] == 0:
+                    is_on_ridge = True
+                if is_on_ridge and y + 1 < col and mask_ridges.image[x, y] == 0 and mask_ridges.image[x, y + 1] == 255:
+                    count += 1
+                    is_on_ridge = False
+
             if count != 0:
-                startpoint = (0, x)
-                endpoint = (col, x)
-                cv2.line(mask_ridges_color_horizontal, startpoint,
-                         endpoint, color, thickness)
-                cv2.line(mask_ridges_color, startpoint,
-                         endpoint, color, thickness)
+                if draw:
+                    startpoint = (0, x)
+                    endpoint = (col, x)
+                    cv2.line(mask_ridges_color_horizontal, startpoint,
+                             endpoint, color, thickness)
+                    cv2.line(mask_ridges_color, startpoint,
+                             endpoint, color, thickness)
                 horizontal.append(count)
-                if (len(horizontal_count) <= sample_size):
+                if (len(horizontal_count) <= sample_line_len):
                     horizontal_count.append(count)
-                    horizontal_axie.append(x)
+                    horizontal_axis.append(x)
                 else:
                     if min(horizontal_count) < count:
                         index = horizontal_count.index(min(horizontal_count))
                         horizontal_count[index] = count
-                        horizontal_axie[index] = x
+                        horizontal_axis[index] = x
                 count = 0
 
+        # Count number of vertical lines
         vertical = []
         vertical_count = []
-        vertical_axie = []
+        vertical_axis = []
         count = 0
+        is_on_ridge = False
         for y in range(0, col, 16):
             for x in range(row):
-                if x + 1 < row:
-                    if mask_ridges.image[x, y] == 0 and mask_ridges.image[x + 1, y] == 255:
-                        count += 1
+                if x + 1 < row and mask_ridges.image[x, y] == 255 and mask_ridges.image[x + 1, y] == 0:
+                    is_on_ridge = True
+                if is_on_ridge and x + 1 < row and mask_ridges.image[x, y] == 0 and mask_ridges.image[x + 1, y] == 255:
+                    count += 1
+                    is_on_ridge = False
             if count != 0:
-                startpoint = (y, 0)
-                endpoint = (y, row)
-                cv2.line(mask_ridges_color_vertical, startpoint,
-                         endpoint, color, thickness)
-                cv2.line(mask_ridges_color, startpoint,
-                         endpoint, color, thickness)
+                if draw:
+                    startpoint = (y, 0)
+                    endpoint = (y, row)
+                    cv2.line(mask_ridges_color_vertical, startpoint,
+                             endpoint, color, thickness)
+                    cv2.line(mask_ridges_color, startpoint,
+                             endpoint, color, thickness)
                 vertical.append(count)
-                if (len(vertical_count) <= sample_size):
+                if (len(vertical_count) <= sample_line_len):
                     vertical_count.append(count)
-                    vertical_axie.append(y)
+                    vertical_axis.append(y)
                 else:
                     if min(vertical_count) <= count:
                         index = vertical_count.index(min(vertical_count))
                         vertical_count[index] = count
-                        vertical_axie[index] = y
+                        vertical_axis[index] = y
                 count = 0
 
-        color = (0, 255, 0)
+        color_mark = (0, 255, 0)
 
+        # Create the dictionary for output
         dicto = {}
-        for i in range(sample_size):
-            startpoint = (0, horizontal_axie[i])
-            endpoint = (col, horizontal_axie[i])
-            cv2.line(mask_ridges_color_horizontal, startpoint,
-                     endpoint, color, thickness)
-            cv2.line(mask_ridges_color, startpoint,
-                     endpoint, color, thickness)
-            startpoint = (vertical_axie[i], 0)
-            endpoint = (vertical_axie[i], row)
-            cv2.line(mask_ridges_color_vertical, startpoint,
-                     endpoint, color, thickness)
-            cv2.line(mask_ridges_color, startpoint,
-                     endpoint, color, thickness)
-            dicto[f"{vertical_axie[i]}:{horizontal_axie[i]}"] = [
+        for i in range(sample_line_len):
+            if draw:
+                startpoint = (0, horizontal_axis[i])
+                endpoint = (col, horizontal_axis[i])
+                cv2.line(mask_ridges_color_horizontal, startpoint,
+                         endpoint, color_mark, thickness)
+                cv2.line(mask_ridges_color, startpoint,
+                         endpoint, color_mark, thickness)
+                startpoint = (vertical_axis[i], 0)
+                endpoint = (vertical_axis[i], row)
+                cv2.line(mask_ridges_color_vertical, startpoint,
+                         endpoint, color_mark, thickness)
+                cv2.line(mask_ridges_color, startpoint,
+                         endpoint, color_mark, thickness)
+            dicto[f"{vertical_axis[i]}:{horizontal_axis[i]}"] = [
                 vertical_count[i], horizontal_count[i]]
 
         total_mean = np.mean(np.concatenate([horizontal, vertical]))
@@ -275,148 +301,132 @@ class Fingerprint:
             "vertical_mean": np.mean(vertical),
             "horizontal_mean": np.mean(horizontal),
             "total_mean": total_mean,
-            "expected_core": [np.mean(vertical_axie), np.mean(horizontal_axie)],
+            "expected_core": [np.mean(vertical_axis), np.mean(horizontal_axis)],
             "description": description
         }
 
+        # Images to generate later
         self.vertical_lines = Image(mask_ridges_color_vertical)
         self.horizontal_lines = Image(mask_ridges_color_horizontal)
         self.lines = Image(mask_ridges_color)
 
-    def grade_sinusoidal(self, signal, count) -> int:
+    def grade_sinusoidal(self, line_signal, draw=True) -> None:
+        # TODO: Autoencoder, Expected core, Only one ridge
 
+        # Source: https://github.com/guillaume-chevalier/filtering-stft-and-laplace-transform
         def butter_lowpass(cutoff, nyq_freq, order=4):
             normal_cutoff = float(cutoff) / nyq_freq
-            b, a = ss.butter(order, normal_cutoff, btype='lowpass')
+            b, a = butter(order, normal_cutoff, btype='lowpass')
             return b, a
 
         def butter_lowpass_filter(data, cutoff_freq, nyq_freq, order=4):
-            # Source: https://github.com/guillaume-chevalier/filtering-stft-and-laplace-transform
             b, a = butter_lowpass(cutoff_freq, nyq_freq, order=order)
-            y = ss.filtfilt(b, a, data)
+            y = filtfilt(b, a, data)
             return y
 
-        signal = signal.astype('float64')
-        signal /= np.max(np.abs(signal), axis=0)
+        # Normalize signal
+        line_signal = line_signal.astype('float64')
+        line_signal /= np.max(np.abs(line_signal), axis=0)
 
-        filter = butter_lowpass_filter(signal, 5, 50/2)
+        low_pass = butter_lowpass_filter(line_signal, 5, 50/2)
+        ridge_threshold = 0.7  # Threshold which
 
-        ridge_threshold = 0.7
-
+        # Count the number of computer ridges which uphold the threshold
         ridge = 0
         on_ridge = False
-        for item in filter:
+        for item in low_pass:
             if not on_ridge and item > ridge_threshold:
                 ridge += 1
                 on_ridge = True
             if on_ridge and item < ridge_threshold:
                 on_ridge = False
 
-        test_state = ridge
-
+        # Using the Difference of squares to find the best period aligement
         best_align = None
-        saved_index = 0
+        index_best_a = 0
         period = np.arange(-np.pi, np.pi, 0.001)
         for i in range(len(period)):
-            x = np.linspace(period[i], test_state * np.pi, len(signal))
+            x = np.linspace(period[i], ridge * np.pi, len(line_signal))
             sin = np.abs(np.sin(x))
 
-            res = np.sum((sin - signal) ** 2)
+            diff_sqr = np.sum((sin - line_signal) ** 2)
             if i == 0:
-                best_align = res
-            if res < best_align:
-                best_align = res
-                saved_index = period[i]
-        # print("YAY", best_align, saved_index, ridge)
+                best_align = diff_sqr
+            if diff_sqr < best_align:
+                best_align = diff_sqr
+                index_best_a = period[i]
 
-        x = np.linspace(saved_index, test_state * np.pi, len(signal))
+        # Calculate the aligned sinus
+        x = np.linspace(index_best_a, ridge * np.pi, len(line_signal))
         sin = np.abs(np.sin(x))
 
-        plt.figure(figsize=(40, 10), dpi=100)
-        plt.plot(signal, label="Ridges")
+        if draw:
+            fig_sinus: plt.Figure = plt.figure(figsize=(40, 10), dpi=100)
+            plt.plot(line_signal, label="Ridges", figure=fig_sinus)
+            plt.plot(sin, label="Sinus", figure=fig_sinus)
+            plt.xlabel("Pixels (X)", figure=fig_sinus)
+            plt.ylabel("Grayscale values (Y)", figure=fig_sinus)
+            plt.legend()
+            plt.close()
+            self.fig_sin = fig_sinus
 
-        plt.plot(sin, label="Sinus")
-        # plt.plot(filter, label="lowpass")
-
-        plt.xlabel("X")
-        plt.ylabel("Y")
-        plt.legend()
-
-        plt.savefig(f"{self.name}_sin.png")
-        plt.close()
-
-        A_FP = integrate.simpson(signal)
-        A_SIN = integrate.simpson(sin)
+        # Calculate the integral under the discrete signal
+        A_FP = simpson(line_signal)
+        A_SIN = simpson(sin)
 
         D_D = (A_FP/A_SIN - 1) * 100
 
-        # print("D_D", D_D)
-
         self.json['papillary_crosscut']['sinusoidal_shape'] = {
             "ridges_low_pass_count": ridge,
-            "sinus_offset": saved_index,
+            "sinus_offset": index_best_a,
             "A_FP": A_FP,
             "A_SIN": A_SIN,
             "D_D": D_D
         }
 
-        return ridge
-
-    def grade_thickness(self, signal, ridge) -> None:
+    def grade_thickness(self, line_signal, draw=True) -> None:
+        # TODO: Autoencoder, Expected core
         average_thickness = 0.033  # mm
 
-        base = 2.54/1000
+        # 18% defined by literature
+        height_threshold = 18 / 100
 
-        normali = 18/100
+        # Normalization
+        line_signal = line_signal.astype('float64')
+        line_signal /= np.max(np.abs(line_signal), axis=0)
 
-        signal = signal.astype('float64')
-        signal /= np.max(np.abs(signal), axis=0)
-
-        zero_line = np.zeros(len(signal))
-        perce = np.full(shape=len(signal),
-                        fill_value=normali,
-                        dtype=np.float32)
-
-        ridge_threshold = normali
-
-        # print(signal)
-
-        plat_arr = np.zeros(len(signal))
+        display_thickness = np.zeros(len(line_signal))
         on_ridge = False
-        for i in range(len(signal)):
-            if not on_ridge and signal[i] > normali:
+        for i in range(len(line_signal)):
+            if not on_ridge and line_signal[i] > height_threshold:
                 on_ridge = True
-            if on_ridge and signal[i] > ridge_threshold:
-                plat_arr[i] = normali
-            if on_ridge and signal[i] < ridge_threshold:
+            if on_ridge and line_signal[i] > height_threshold:
+                display_thickness[i] = height_threshold
+            if on_ridge and line_signal[i] < height_threshold:
                 on_ridge = False
+        if draw:
+            fig_thickness = plt.figure(figsize=(40, 10), dpi=100)
+            plt.plot(line_signal, label="Ridges", figure=fig_thickness)
+            plt.plot(display_thickness, label="Thickness",
+                     figure=fig_thickness)
+            plt.xlabel("Pixels (X)", figure=fig_thickness)
+            plt.ylabel("Grayscale values (Y)", figure=fig_thickness)
+            plt.legend()
+            plt.close()
+            self.fig_thick = fig_thickness
 
-        plt.figure(figsize=(40, 10), dpi=100)
-        plt.plot(signal, label="Ridges")
-        plt.plot(plat_arr, label="plat_arr")
+        # Split the ridges into individual arrays
+        ridges_separated = np.where(display_thickness != 0)[0]
+        ridges_list = np.split(display_thickness[ridges_separated],
+                               np.where(np.diff(ridges_separated) != 1)[0]+1)
 
-        # plt.plot(perce, label="perce18")
-        plt.plot(zero_line, label="Zeros", color="black")
-
-        plt.xlabel("X")
-        plt.ylabel("Y")
-        plt.legend()
-
-        plt.savefig(f"{self.name}_thick.png")
-        plt.close()
-
-        idx = np.where(plat_arr != 0)[0]
-        aout = np.split(plat_arr[idx], np.where(np.diff(idx) != 1)[0]+1)
-
+        # Transform the pixels into readable format
+        base = 2.54 / self.dpi
         result = []
-
-        for item in aout:
-            # print(len(aout))
+        for item in ridges_list:
             Th = base * len(item)
-
             Dth = (Th/average_thickness - 1) * 100
             result.append(Dth)
-        # print(result)
 
         self.json['papillary_crosscut']['thickness'] = {
             "ridges_low_pass_count": len(result),
@@ -477,41 +487,39 @@ class Fingerprint:
 
         return cx, cy
 
-    def get_pependicular(self, cx, cy, angle_base=1):
+    def get_pependicular(self, cx: int, cy: int, angle_base=1):
 
-        def rotate_image(image, angle, cx, cy):
-            height = image.shape[0]
-            width = image.shape[1]
-            output_size = int(math.sqrt(height ** 2 + width ** 2))
-            diff_height = output_size - height
-            diff_width = output_size - width
+        def rotate_image(image, angle: int, cx: int, cy: int):
+            row, col = image.shape
+            squared_size: int = np.int(np.sqrt(row ** 2 + col ** 2))
+            diff_col: int = squared_size - col
+            diff_row: int = squared_size - row
 
-            cx += diff_width // 2
-            cy += diff_height // 2
+            cx += diff_col // 2
+            cy += diff_row // 2
 
-            image = cv2.copyMakeBorder(image, round((diff_height) / 2), int((diff_height) / 2),
-                                       round((diff_width) / 2), int((diff_width) / 2), 0)
+            image = cv2.copyMakeBorder(image, round((diff_row) / 2), int((diff_row) / 2),
+                                       round((diff_col) / 2), int((diff_col) / 2), 0)
 
             image_center = tuple((cx, cy))
-            rot_mat = cv2.getRotationMatrix2D(image_center, angle, 1.0)
-            result = cv2.warpAffine(
-                image, rot_mat, image.shape[1::-1], flags=cv2.INTER_NEAREST)
-            return result, cx, cy
+            matrix = cv2.getRotationMatrix2D(image_center, angle, 1.0)
+            image = cv2.warpAffine(
+                image, matrix, image.shape[1::-1], flags=cv2.INTER_NEAREST)
+            return image, cx, cy
 
-        def cut_image_with_bb(bounding_box, cropped_image):
+        def cut_image(image_mask, cropped_image):
             contours, _ = cv2.findContours(
-                bounding_box, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            cnt = contours[0]
-            x, y, w, h = cv2.boundingRect(cnt)
+                image_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            x, y, w, h = cv2.boundingRect(contours[0])
             return cropped_image[y:y+h, x:x+w], x, y
 
-        def make_image(mask_ridges, index, angle_base, cx, cy, draw=False):
+        def make_image(mask_ridges, index, angle_base, cx, cy, draw=False, image=True):
             rotated_image, cx_rot, cy_rot = rotate_image(
                 mask_ridges.image, index*angle_base, cx, cy)
-            bounding_box, _, _ = rotate_image(
+            image_mask, _, _ = rotate_image(
                 self.mask_filled.image, index*angle_base, cx, cy)
-            rotated_image, x_bb, y_bb = cut_image_with_bb(
-                bounding_box, rotated_image)
+            rotated_image, x_bb, y_bb = cut_image(
+                image_mask, rotated_image)
 
             cx_rot -= x_bb
             cy_rot -= y_bb
@@ -524,24 +532,20 @@ class Fingerprint:
                 cv2.line(rotated_image, (cx_rot, cy_rot),
                          (cx_rot, 0), (0, 0, 255), 1)
 
-            return rotated_image
+            if image:
+                return rotated_image
+            else:
+                return rotated_image, cx_rot, cy_rot
 
         mask_ridges = Image(cv2.bitwise_and(
             self.bin_image.image, self.bin_image.image, mask=self.mask.image))
 
-        result = []
+        candidate_results = []
         result_count = []
 
         for angle in range(0, 360, angle_base):
-            rotated_image, cx_rot, cy_rot = rotate_image(
-                mask_ridges.image, angle, cx, cy)
-            bounding_box, _, _ = rotate_image(
-                self.mask_filled.image, angle, cx, cy)
-            rotated_image, x_bb, y_bb = cut_image_with_bb(
-                bounding_box, rotated_image)
-
-            cx_rot -= x_bb
-            cy_rot -= y_bb
+            rotated_image, cx_rot, cy_rot = make_image(
+                mask_ridges, 1, angle, cx, cy, draw=False, image=False)
 
             # Count number of lines
             extracted_line = rotated_image[:cy_rot, cx_rot]
@@ -554,34 +558,37 @@ class Fingerprint:
                     count += 1
                     is_on_ridge = False
 
-            # Detect sobel
+            # Blur the binary image and apply Sobel gradient in Y direction
+            # throw white and black and compute mean, the greater the value
+            # the better precision
+
             edge_detection = cv2.GaussianBlur(
                 rotated_image, (21, 7), cv2.BORDER_DEFAULT)
             edge_detection = cv2.Sobel(edge_detection, 0, dx=0, dy=1)
             edge_detection = np.uint8(np.absolute(edge_detection))
             edge_detection = edge_detection[:cy_rot, :]
 
-            # Throw 0 and 255 out
+            # Throw black (0) and white (255) out
             edge_detection = [
                 i for i in edge_detection[:cy_rot, cx_rot] if i not in [0, 255]]
 
             # Calculate the mean
-            result.append(np.mean(edge_detection))
+            candidate_results.append(np.mean(edge_detection))
             result_count.append(count)
 
-        max_value = max(result)
-        index = result.index(max_value)
+        max_sobel_value = max(candidate_results)
+        angle = candidate_results.index(max_sobel_value)
 
         # Generate image which shows the progress
         self.pependicular = Image(make_image(
-            mask_ridges, index, angle_base, cx, cy, draw=True))
+            mask_ridges, angle, angle_base, cx, cy, draw=True))
 
         # Apply the mask and rotation on the image
         clahe_grayscale_extracted = Image(cv2.bitwise_and(self.grayscale_clahe.image,
                                                           self.grayscale_clahe.image, mask=self.mask.image))
 
         self.clahe_grayscale_rotated = Image(make_image(
-            clahe_grayscale_extracted, index, angle_base, cx, cy, draw=False))
+            clahe_grayscale_extracted, angle, angle_base, cx, cy, draw=False))
 
         extracted_grayscale_line = self.clahe_grayscale_rotated.image[:cy_rot, cx_rot]
 
@@ -592,11 +599,11 @@ class Fingerprint:
                 break
 
         self.json['papillary_crosscut'] = {
-            "angle": index * angle_base,
-            "ridges_binary_count": result_count[index]
+            "angle": angle * angle_base,
+            "ridges_binary_count": result_count[angle]
         }
 
-        return extracted_grayscale_line, result_count[index]
+        return extracted_grayscale_line, count
 
     def generate_images(self, path, ext=".jpeg") -> None:
         Image.save(self.vertical_lines.image, path,
@@ -611,6 +618,9 @@ class Fingerprint:
                    f"{self.name}_pependicular", ext)
         Image.save(self.clahe_grayscale_rotated.image, path,
                    f"{self.name}_clahe_grayscale_rotated", ext)
+
+        self.fig_sin.savefig(f"{self.name}_sin.png")
+        self.fig_thick.savefig(f"{self.name}_thick.png")
 
     def show(self) -> None:
         # Image.show(self.raw.image, "Raw", scale=0.5)

@@ -54,7 +54,8 @@ def set_envinronment(args) -> None:
     """
     # Set up logging
     logging.basicConfig(
-        filename=f"LatFigGra_{datetime.utcnow().strftime('%m.%d.%Y_%H.%M.%S')}.log",
+        # filename=f"LatFigGra_{datetime.utcnow().strftime('%m.%d.%Y_%H.%M.%S')}.log",
+        filename=None,
         level=logging.INFO,
         format='%(levelname)s:[%(asctime)s] - %(message)s',
         datefmt='%m/%d/%Y %H:%M:%S')
@@ -62,8 +63,7 @@ def set_envinronment(args) -> None:
     formatter = logging.Formatter('[%(asctime)s] - %(message)s',
                                   datefmt='%m/%d/%Y %H:%M:%S')
     logger.setFormatter(formatter)
-    logging.getLogger('').addHandler(logger)
-    logger.propagate = False
+    # logging.getLogger('').addHandler(logger)
     logger = logging.getLogger(__name__)
 
     # Sets GPU for neural network
