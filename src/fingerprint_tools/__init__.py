@@ -2,6 +2,7 @@ from . import fingerprint
 from . import contrast_types
 from . import cartext
 from . import image
+from . import report
 
 import logging
 

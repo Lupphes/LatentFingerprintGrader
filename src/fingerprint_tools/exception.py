@@ -12,7 +12,9 @@ __all__ = [
 
     "FileError", "FileNotFoundError", "FileRestrictedError"
 
-    "ERR_ARGUMENTS"
+    "ArrgumentError"
+
+    "UndefinedVariableError"
 ]
 
 
@@ -23,6 +25,7 @@ class ErrorCodes(enum.IntEnum):
     ERR_OPENING_FILE = 21,
     ERR_WRITING_FILE = 22,
     ERR_ARGUMENTS = 30,
+    ERR_UNDEFINED_VARIABLE = 40,
     ERR_INTERNAL = 999
 
 
@@ -74,9 +77,17 @@ class FileRestrictedError(FileError):
         super().__init__(*args)
 
 
-class ArrgumentError(Exception):
+class ArrgumentError(FingerToolsError):
     error_msg = "The specified argument incorrect or missing. Please check your input."
     exit_code = ErrorCodes.ERR_WRITING_FILE
+
+    def __init__(self, *args):
+        super().__init__(*args)
+
+
+class UndefinedVariableError(FingerToolsError):
+    error_msg = "Variable which was called was not defined."
+    exit_code = ErrorCodes.ERR_UNDEFINED_VARIABLE
 
     def __init__(self, *args):
         super().__init__(*args)

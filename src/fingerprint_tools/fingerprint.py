@@ -1,109 +1,133 @@
-from cProfile import label
-from cmath import inf
-from itertools import tee
 import os
-import pathlib
+from pathlib import Path
 import cv2
 import numpy as np
 import pickle
 import json
 import math
-import matplotlib.pyplot as plt
+from matplotlib import pyplot as plt
+from scipy import integrate
+import scipy.signal as ss
+import logging
+from datetime import datetime
 
 from .contrast_types import ContrastTypes, ThresholdFlags
 from .definitions import MinutuaeThreshold, RMSEThreshold, NumberOfRidgesThreshold
-from .exception import FileError
+from .exception import FileError, ArrgumentError, UndefinedVariableError
 from .image import Image
+from .report import Report
 
-from typing import Any
+from typing import Dict, Any, Union
 
 
 class Fingerprint:
     def __init__(self, path, dpi):
-        self.name = os.path.basename(path)
-        self.dpi = dpi
+        self.name: str = Path(path).name
+        self.dpi: int = dpi
+
         self.raw: Image = Image(image=self.read_raw_image(path))
-        self.grayscale: Image = Image(
-            image=self.raw.image)
+
+        # Grayscale
+        self.grayscale: Image = Image(image=self.raw.image)
         self.grayscale.image_to_grayscale()
-        self.json = {}
 
-    def read_raw_image(self, path):
-        def adjust_image_size(img, block_size=16):
-            h, w = img.shape[:2]
-            blkH = h // block_size
-            blkW = w // block_size
-            ovph = 0
-            ovpw = 0
+        # Applied CLAHE on grayscale
+        self.grayscale_clahe = Image(self.grayscale.image)
+        self.grayscale_clahe.apply_contrast(contrast_type=ContrastTypes.CLAHE)
 
-            img = img[ovph:ovph + blkH * block_size,
-                      ovpw:ovpw + blkW * block_size]
-            return img
+        # self.json: Report = Report()
+        self.json: Dict = {}
+
+    def read_raw_image(self, path: Path, block_size=16) -> np.ndarray:
+        """
+        Reads the raw image from the given path and 
+        parse them into 16 dividable shape and therefore 
+        the MSU_AFIS package can read it
+        """
+        def image2blocks(image: np.ndarray, block_size: int) -> np.ndarray:
+            """
+            Adjusting image for MSU_AFIS package
+            Making the image dividable
+            """
+            row, col, _ = image.shape
+            blockR = row // block_size
+            blockC = col // block_size
+
+            return image[:blockR * block_size, :blockC * block_size]
 
         image = cv2.imread(path)
         if image is None:
             raise FileError()
-        image = adjust_image_size(image)
-        return image
+        return image2blocks(image, block_size)
 
-    def mus_afis_segmentation(self, image_path, destination_dir, lf_latent=None):
-        from .msu_latentafis.extraction_latent import get_feature_extractor
-        if lf_latent == None:
-            lf_latent = get_feature_extractor()
+    def msu_afis(self, path_image: str, path_destination: str, extractor_class=None):
+        from .msu_latentafis.extraction_latent import get_feature_extractor, FeatureExtraction_Latent
+        if extractor_class == None:
+            extractor_class: FeatureExtraction_Latent = get_feature_extractor()
 
-        print("Latent query: " + self.name)
-        print("Starting feature extraction (single latent)...")
-        l_template, _ = lf_latent.feature_extraction_single_latent(
-            img_file=image_path, output_dir=str(os.path.abspath(destination_dir)), show_processes=False,
+        logging.info(f'Curently processing: "{self.name}"')
+        extractor_class.feature_extraction_single_latent(
+            img_file=path_image, output_dir=str(os.path.abspath(path_destination)), show_processes=False,
             minu_file=None, show_minutiae=True
         )
 
-        self.common1 = lf_latent.common1
-        self.common2 = lf_latent.common2
-        self.common3 = lf_latent.common3
-        self.common4 = lf_latent.common4
-        self.virtual_des = lf_latent.virtual_des
-        self.mask = Image(lf_latent.mask)
-        self.aec = Image(lf_latent.aec)
-        self.bin_image = Image(lf_latent.bin_image)
+        self.common_minutiae: list = [
+            extractor_class.common1,
+            extractor_class.common2,
+            extractor_class.common3,
+            extractor_class.common4
+        ]
+        self.mask: Image = Image(extractor_class.mask)
+        self.aec: Image = Image(extractor_class.aec)
+        self.bin_image: Image = Image(extractor_class.bin_image)
 
-        print("Exiting...")
-        return lf_latent
+        self.generate_helpers()
 
-    def grade_fingerprint(self):
+        logging.info('Feature extraction finished!')
+        return extractor_class
+
+    def generate_helpers(self) -> None:
+        self.bin_image_masked = Image(cv2.bitwise_and(
+            self.bin_image.image, self.bin_image.image, mask=self.mask.image))
+
+        self.grayscale_clahe_masked = Image(cv2.bitwise_and(
+            self.grayscale_clahe.image, self.grayscale_clahe.image, mask=self.mask.image))
+
+    def grade_fingerprint(self) -> None:
         self.grade_minutiae_points()
         self.grade_contrast()
         self.grade_lines()
 
         cx, cy = self.get_center_cords()
         line, count = self.get_pependicular(cx, cy)
+
         ridge = self.grade_sinusoidal(line, count)
         self.grade_thickness(line, ridge)
 
-    def grade_minutiae_points(self):
-        cm1 = len(np.array(self.common1, dtype=np.uint64))
-        cm2 = len(np.array(self.common2, dtype=np.uint64))
-        cm3 = len(np.array(self.common3, dtype=np.uint64))
-        cm4 = len(np.array(self.common4, dtype=np.uint64))
+    def grade_minutiae_points(self, thresh=2) -> None:
+        if 0 > thresh or thresh > 3:
+            raise ArrgumentError()
+
+        if self.common_minutiae is None:
+            raise UndefinedVariableError()
+
+        number_of_cmp = len(
+            np.array(self.common_minutiae[thresh], dtype=np.uint64))
 
         text_description = ""
-        if cm3 > MinutuaeThreshold.BEYOND_RESONABLE_DOUBT:
+        if number_of_cmp > MinutuaeThreshold.BEYOND_RESONABLE_DOUBT:
             text_description = "Enough minutiae points for identification beyond reasonable doubt"
-        elif cm3 <= MinutuaeThreshold.BEYOND_RESONABLE_DOUBT and cm3 > MinutuaeThreshold.TWELVE_GUIDELINE:
+        elif number_of_cmp <= MinutuaeThreshold.BEYOND_RESONABLE_DOUBT and number_of_cmp > MinutuaeThreshold.TWELVE_GUIDELINE:
             text_description = "Enough minutiae points for identification with possible error"
         else:
             text_description = "Not enough minutiae points for identification"
 
         self.json['minutuae_points'] = {
-            "quantity": cm3,
+            "quantity": number_of_cmp,
             "description": text_description
         }
 
-    def grade_contrast(self):
-        clahe_grayscale = Image(self.grayscale.image)
-        clahe_grayscale.apply_contrast(contrast_type=ContrastTypes.CLAHE)
-        self.clahe_grayscale = clahe_grayscale
-
+    def grade_contrast(self) -> None:
         mask_ridges = Image(cv2.bitwise_and(
             self.bin_image.image, self.bin_image.image, mask=self.mask.image))
 
@@ -112,15 +136,15 @@ class Fingerprint:
         mask_valleys = Image(cv2.bitwise_and(
             self.bin_image.image, self.bin_image.image, mask=self.mask.image))
 
-        extracted_ridges = Image(cv2.bitwise_and(clahe_grayscale.image,
-                                                 clahe_grayscale.image, mask=mask_ridges.image))
+        extracted_ridges = Image(cv2.bitwise_and(self.grayscale_clahe.image,
+                                                 self.grayscale_clahe.image, mask=mask_ridges.image))
 
-        extracted_valleys = Image(cv2.bitwise_and(clahe_grayscale.image,
-                                                  clahe_grayscale.image, mask=mask_valleys.image))
+        extracted_valleys = Image(cv2.bitwise_and(self.grayscale_clahe.image,
+                                                  self.grayscale_clahe.image, mask=mask_valleys.image))
 
-        mask_ridges_wblack = clahe_grayscale.image[np.where(
+        mask_ridges_wblack = self.grayscale_clahe.image[np.where(
             mask_ridges.image == 255)]
-        mask_valleys_wblack = clahe_grayscale.image[np.where(
+        mask_valleys_wblack = self.grayscale_clahe.image[np.where(
             mask_valleys.image == 255)]
 
         valleys_minimum = np.uint16(np.min(mask_valleys_wblack, axis=0))
@@ -147,7 +171,7 @@ class Fingerprint:
 
         self.bin_image.invert_binary()
 
-    def grade_lines(self):
+    def grade_lines(self) -> None:
         mask_ridges = Image(cv2.bitwise_and(
             self.bin_image.image, self.bin_image.image, mask=self.mask.image))
 
@@ -259,18 +283,17 @@ class Fingerprint:
         self.horizontal_lines = Image(mask_ridges_color_horizontal)
         self.lines = Image(mask_ridges_color)
 
-    def grade_sinusoidal(self, signal, count):
-        import scipy
+    def grade_sinusoidal(self, signal, count) -> int:
 
         def butter_lowpass(cutoff, nyq_freq, order=4):
             normal_cutoff = float(cutoff) / nyq_freq
-            b, a = scipy.signal.butter(order, normal_cutoff, btype='lowpass')
+            b, a = ss.butter(order, normal_cutoff, btype='lowpass')
             return b, a
 
         def butter_lowpass_filter(data, cutoff_freq, nyq_freq, order=4):
             # Source: https://github.com/guillaume-chevalier/filtering-stft-and-laplace-transform
             b, a = butter_lowpass(cutoff_freq, nyq_freq, order=order)
-            y = scipy.signal.filtfilt(b, a, data)
+            y = ss.filtfilt(b, a, data)
             return y
 
         signal = signal.astype('float64')
@@ -322,8 +345,8 @@ class Fingerprint:
         plt.savefig(f"{self.name}_sin.png")
         plt.close()
 
-        A_FP = scipy.integrate.simpson(signal)
-        A_SIN = scipy.integrate.simpson(sin)
+        A_FP = integrate.simpson(signal)
+        A_SIN = integrate.simpson(sin)
 
         D_D = (A_FP/A_SIN - 1) * 100
 
@@ -339,7 +362,7 @@ class Fingerprint:
 
         return ridge
 
-    def grade_thickness(self, signal, ridge):
+    def grade_thickness(self, signal, ridge) -> None:
         average_thickness = 0.033  # mm
 
         base = 2.54/1000
@@ -356,7 +379,7 @@ class Fingerprint:
 
         ridge_threshold = normali
 
-        print(signal)
+        # print(signal)
 
         plat_arr = np.zeros(len(signal))
         on_ridge = False
@@ -393,14 +416,14 @@ class Fingerprint:
 
             Dth = (Th/average_thickness - 1) * 100
             result.append(Dth)
-        print(result)
+        # print(result)
 
         self.json['papillary_crosscut']['thickness'] = {
             "ridges_low_pass_count": len(result),
             "thickness_difference": result
         }
 
-    def generate_rating(self, dirname: pathlib):
+    def generate_rating(self, dirname: Path) -> Union[int, int]:
         filename = os.path.join(dirname, 'log.json')
         if not (os.path.isfile(filename) and os.access(filename, os.R_OK)):
             with open(filename, 'w') as file:
@@ -415,7 +438,7 @@ class Fingerprint:
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 
-    def get_center_cords(self):
+    def get_center_cords(self) -> Union[int, int]:
         mask_filled = Image(self.mask.image)
         clahe_grayscale = Image(self.grayscale.image)
         clahe_grayscale.apply_contrast(contrast_type=ContrastTypes.CLAHE)
@@ -554,8 +577,8 @@ class Fingerprint:
             mask_ridges, index, angle_base, cx, cy, draw=True))
 
         # Apply the mask and rotation on the image
-        clahe_grayscale_extracted = Image(cv2.bitwise_and(self.clahe_grayscale.image,
-                                                          self.clahe_grayscale.image, mask=self.mask.image))
+        clahe_grayscale_extracted = Image(cv2.bitwise_and(self.grayscale_clahe.image,
+                                                          self.grayscale_clahe.image, mask=self.mask.image))
 
         self.clahe_grayscale_rotated = Image(make_image(
             clahe_grayscale_extracted, index, angle_base, cx, cy, draw=False))
@@ -575,7 +598,7 @@ class Fingerprint:
 
         return extracted_grayscale_line, result_count[index]
 
-    def generate_images(self, path, ext=".jpeg"):
+    def generate_images(self, path, ext=".jpeg") -> None:
         Image.save(self.vertical_lines.image, path,
                    f"{self.name}_lines_vertical", ext)
         Image.save(self.horizontal_lines.image, path,
@@ -589,16 +612,12 @@ class Fingerprint:
         Image.save(self.clahe_grayscale_rotated.image, path,
                    f"{self.name}_clahe_grayscale_rotated", ext)
 
-    def show(self):
+    def show(self) -> None:
         # Image.show(self.raw.image, "Raw", scale=0.5)
         Image.show(self.grayscale.image, "Grayscale", scale=0.5)
         # Image.show(self.filtered.image, "Filtered", scale=0.5)
         # Image.show(self.binary.image, "Binary", scale=0.5)
 
-        print("Test data:\n")
         Image.show(self.mask, name="Mask", scale=0.5)
         Image.show(self.aec, "AEC", scale=0.5)
         Image.show(self.bin_image, "Bin image", scale=0.5)
-        # print(lf_latent.minu_model)
-        # print(lf_latent.minutiae_sets)
-        pass

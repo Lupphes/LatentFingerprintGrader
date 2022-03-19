@@ -5,10 +5,7 @@ import numpy as np
 from .contrast_types import ContrastTypes, ThresholdFlags
 from .cartext import Cartext
 
-
 from typing import Any
-
-from scipy.signal import medfilt2d, medfilt
 
 
 class Image:
@@ -52,30 +49,6 @@ class Image:
 
     def invert_binary(self):
         self.image = cv2.bitwise_not(self.image)
-
-    def normalization(self, M_0=0.9, VAR_0=0.7):
-
-        row, col = self.image.shape
-
-        M, _ = cv2.meanStdDev(self.image)
-        VAR = np.var(self.image)
-        G = np.zeros(self.image.shape)
-
-        for i in range(row):
-            for j in range(col):
-                if self.image[i, j] > M:
-                    G[i, j] = M_0 + \
-                        np.sqrt((VAR_0 * (self.image[i, j] - M) ** 2) / VAR)
-                else:
-                    G[i, j] = M_0 - \
-                        np.sqrt((VAR_0 * (self.image[i, j] - M) ** 2) / VAR)
-
-        print(f'Mean: {M}, Variance: {VAR}')
-
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
-
-        self.image = G
 
     def apply_contrast(self, contrast_type=ContrastTypes.CLAHE):
         if contrast_type == ContrastTypes.CLAHE:

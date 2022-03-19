@@ -5,23 +5,23 @@ import os
 import argparse
 from pathlib import Path
 import pickle
-import typing
-
+import logging
+from datetime import datetime
 
 import fingerprint_tools as fp
 from fingerprint_tools.exception import ArrgumentError as ArrgumentError
 
 
 def argument_parse() -> argparse.ArgumentParser:
-    """ 
-    Parse the arguments for the whole script and 
+    """
+    Parse the arguments for the whole script and
     pass them to main
     """
 
     parser = argparse.ArgumentParser(
         add_help=True,
-        prog="LatFigGre",
-        description='LatFigGre (Latent Fingerprint Grader) 2022, Author: Ondřej Sloup (xsloup02)'
+        prog="LatFigGra",
+        description='LatFigGra (Latent Fingerprint Grader) 2022, Author: Ondřej Sloup (xsloup02)'
     )
     parser.add_argument(
         '-g', '--gpu', type=str, help='Comma-separated list of graphic cards which the script will use for msu_afis.', default='0'
@@ -47,11 +47,24 @@ def argument_parse() -> argparse.ArgumentParser:
 
 
 def set_envinronment(args) -> None:
-    """ 
-    Prepares the python environment for packages and sets essential 
-    variables for the MSU_AFIS package, and prepares arguments 
+    """
+    Prepares the python environment for packages and sets essential
+    variables for the MSU_AFIS package, and prepares arguments
     and directory structure
     """
+    # Set up logging
+    logging.basicConfig(
+        filename=f"LatFigGra_{datetime.utcnow().strftime('%m.%d.%Y_%H.%M.%S')}.log",
+        level=logging.INFO,
+        format='%(levelname)s:[%(asctime)s] - %(message)s',
+        datefmt='%m/%d/%Y %H:%M:%S')
+    logger = logging.StreamHandler()
+    formatter = logging.Formatter('[%(asctime)s] - %(message)s',
+                                  datefmt='%m/%d/%Y %H:%M:%S')
+    logger.setFormatter(formatter)
+    logging.getLogger('').addHandler(logger)
+    logger.propagate = False
+    logger = logging.getLogger(__name__)
 
     # Sets GPU for neural network
     if args.gpu:
@@ -62,7 +75,7 @@ def set_envinronment(args) -> None:
     # https://github.com/opencv/opencv/issues/14058
     if args.ext == "jp2":
         os.environ['OPENCV_IO_ENABLE_JASPER'] = "true"
-        print(
+        logging.warning(
             'Jasper project has many opened vulnerabilities. Beware what are you opening!')
 
     # Setting environment vars for tensorflow
@@ -70,7 +83,7 @@ def set_envinronment(args) -> None:
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
     # Switch to matplotlib agg backend
-    import matplotlib.pyplot as plt
+    from matplotlib import pyplot as plt
     plt.switch_backend('agg')
 
     # Creates output folder if not specified
@@ -84,7 +97,7 @@ def set_envinronment(args) -> None:
 
 def main(args) -> None:
     """ 
-    Main function of LatFigGre (Latent Fingerprint Grader) 
+    Main function of LatFigGra (Latent Fingerprint Grader) 
     Ondřej Sloup (xsloup02)
     Algorithmic Evaluation of the Quality of Dactyloscopic Traces
     Bachelor's Thesis 2022
@@ -124,8 +137,8 @@ def main(args) -> None:
 
                 # Restore or generate pickle file for faster calculation
                 if args.regenerate or not os.path.exists(path_pickle):
-                    msu_afis = fingerprint_image.mus_afis_segmentation(
-                        image_path=path_image_src, destination_dir=path_img_des_dir, lf_latent=msu_afis)
+                    msu_afis = fingerprint_image.msu_afis(
+                        path_image=path_image_src, path_destination=path_img_des_dir, extractor_class=msu_afis)
 
                     with open(path_pickle, 'wb') as handle:
                         pickle.dump(fingerprint_image, handle,
