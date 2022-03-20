@@ -17,7 +17,7 @@ from .exception import FileError, ArrgumentError, UndefinedVariableError
 from .image import Image
 from .report import Report
 
-from typing import Dict, Any, Union
+from typing import Dict, Any, Union, Tuple
 
 
 class Fingerprint:
@@ -36,13 +36,16 @@ class Fingerprint:
         self.grayscale_clahe = Image(self.grayscale.image)
         self.grayscale_clahe.apply_contrast(contrast_type=ContrastTypes.CLAHE)
 
+        self.clahe_grayscale_color = Image(cv2.cvtColor(
+            self.grayscale_clahe.image, cv2.COLOR_GRAY2RGB))
+
         # self.json: Report = Report()
         self.json: Dict = {}
 
     def read_raw_image(self, path: Path, block_size=None) -> np.ndarray:
         """
-        Reads the raw image from the given path and 
-        parse them into 16 dividable shape and therefore 
+        Reads the raw image from the given path and
+        parse them into 16 dividable shape and therefore
         the MSU_AFIS package can read it
         """
         def image2blocks(image: np.ndarray, block_size: int) -> np.ndarray:
@@ -102,13 +105,19 @@ class Fingerprint:
         self.grayscale_clahe_masked = Image(cv2.bitwise_and(
             self.grayscale_clahe.image, self.grayscale_clahe.image, mask=self.mask.image))
 
+        self.mask_filled = Image(self.mask.image.copy())
+        self.mask_filled.mask_fill()
+
+        self.bin_image_masked_filled = Image(cv2.bitwise_and(
+            self.bin_image.image, self.bin_image.image, mask=self.mask_filled.image))
+
     def grade_fingerprint(self) -> None:
         self.grade_minutiae_points()
         self.grade_contrast()
         self.grade_lines()
 
         cx, cy = self.get_center_cords()
-        line_signal, _ = self.get_pependicular(cx, cy)
+        line_signal = self.get_pependicular(cx, cy)
 
         self.grade_sinusoidal(line_signal)
         self.grade_thickness(line_signal)
@@ -184,7 +193,7 @@ class Fingerprint:
         }
 
     def grade_lines(self, draw=True) -> None:
-        # TODO: Calculate bounding box, Normalize count
+        # TODO: Calculate bounding box, Normalize count for length -> pixels
 
         # Define new copy of image
         mask_ridges = Image(self.bin_image_masked.image)
@@ -448,38 +457,30 @@ class Fingerprint:
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 
-    def get_center_cords(self) -> Union[int, int]:
-        mask_filled = Image(self.mask.image)
-        clahe_grayscale = Image(self.grayscale.image)
-        clahe_grayscale.apply_contrast(contrast_type=ContrastTypes.CLAHE)
-        clahe_grayscale_color = Image(cv2.cvtColor(
-            clahe_grayscale.image, cv2.COLOR_GRAY2RGB))
-
+    def get_center_cords(self, draw=True) -> Union[int, int]:
+        # Find countours and therfore draw the center
         contour, _ = cv2.findContours(
-            mask_filled.image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            self.mask_filled.image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        if draw:
+            blank = np.zeros(self.mask_filled.image.shape[:2], dtype='uint8')
+            cv2.drawContours(blank, contour, -1, (255, 0, 0), 1)
 
-        for cnt in contour:
-            cv2.drawContours(mask_filled.image, [cnt], 0, 255, -1)
-
-        blank = np.zeros(mask_filled.image.shape[:2], dtype='uint8')
-
-        cv2.drawContours(blank, contour, -1, (255, 0, 0), 1)
-
+        # Calculate the center of an image
         for i in contour:
             M = cv2.moments(i)
             if M['m00'] != 0:
                 cx = int(M['m10']/M['m00'])
                 cy = int(M['m01']/M['m00'])
-                cv2.drawContours(clahe_grayscale_color.image, [
-                                 i], -1, (255, 0, 0), 2)
-                cv2.circle(clahe_grayscale_color.image,
-                           (cx, cy), 7, (0, 0, 255), -1)
-                cv2.putText(clahe_grayscale_color.image, "center", (cx - 20, cy - 20),
-                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-            # print(f"x: {cx} y: {cy}")
-
-        self.clahe_grayscale_color = clahe_grayscale_color
-        self.mask_filled = Image(mask_filled.image)
+                if draw:
+                    clahe_grayscale_center = Image(
+                        self.clahe_grayscale_color.image)
+                    cv2.drawContours(clahe_grayscale_center.image, [
+                        i], -1, (255, 0, 0), 2)
+                    cv2.circle(clahe_grayscale_center.image,
+                               (cx, cy), 7, (0, 0, 255), -1)
+                    cv2.putText(clahe_grayscale_center.image, "center", (cx - 20, cy - 20),
+                                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+                    self.clahe_grayscale_center = clahe_grayscale_center
 
         self.json['papillary_crosscut'] = {
             "mask_center": [cx, cy]
@@ -489,35 +490,35 @@ class Fingerprint:
 
     def get_pependicular(self, cx: int, cy: int, angle_base=1):
 
-        def rotate_image(image, angle: int, cx: int, cy: int):
+        def rotate_image(image, angle: int, center_col: int, center_row: int) -> Tuple[np.ndarray, int, int]:
             row, col = image.shape
             squared_size: int = np.int(np.sqrt(row ** 2 + col ** 2))
             diff_col: int = squared_size - col
             diff_row: int = squared_size - row
 
-            cx += diff_col // 2
-            cy += diff_row // 2
+            center_col += diff_col // 2
+            center_row += diff_row // 2
 
             image = cv2.copyMakeBorder(image, round((diff_row) / 2), int((diff_row) / 2),
                                        round((diff_col) / 2), int((diff_col) / 2), 0)
 
-            image_center = tuple((cx, cy))
+            image_center = tuple((center_col, center_row))
             matrix = cv2.getRotationMatrix2D(image_center, angle, 1.0)
             image = cv2.warpAffine(
                 image, matrix, image.shape[1::-1], flags=cv2.INTER_NEAREST)
-            return image, cx, cy
+            return image, center_col, center_row
 
-        def cut_image(image_mask, cropped_image):
+        def cut_image(image_mask, cropped_image) -> np.ndarray:
             contours, _ = cv2.findContours(
                 image_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             x, y, w, h = cv2.boundingRect(contours[0])
             return cropped_image[y:y+h, x:x+w], x, y
 
-        def make_image(mask_ridges, index, angle_base, cx, cy, draw=False, image=True):
+        def make_image(mask_ridges, index, angle_base, center_col, cy, draw=False, image=True) -> Union[np.ndarray, Tuple[np.ndarray, int, int]]:
             rotated_image, cx_rot, cy_rot = rotate_image(
-                mask_ridges.image, index*angle_base, cx, cy)
+                mask_ridges.image, index*angle_base, center_col, cy)
             image_mask, _, _ = rotate_image(
-                self.mask_filled.image, index*angle_base, cx, cy)
+                self.mask_filled.image, index*angle_base, center_col, cy)
             rotated_image, x_bb, y_bb = cut_image(
                 image_mask, rotated_image)
 
@@ -537,26 +538,13 @@ class Fingerprint:
             else:
                 return rotated_image, cx_rot, cy_rot
 
-        mask_ridges = Image(cv2.bitwise_and(
-            self.bin_image.image, self.bin_image.image, mask=self.mask.image))
+        # Prepare image variables for calculation
+        mask_ridges = Image(self.bin_image_masked_filled.image)
 
         candidate_results = []
-        result_count = []
-
         for angle in range(0, 360, angle_base):
             rotated_image, cx_rot, cy_rot = make_image(
                 mask_ridges, 1, angle, cx, cy, draw=False, image=False)
-
-            # Count number of lines
-            extracted_line = rotated_image[:cy_rot, cx_rot]
-            count = 0
-            is_on_ridge = False
-            for x in range(len(extracted_line)):
-                if x + 1 < len(extracted_line) and extracted_line[x] == 255 and extracted_line[x + 1] == 0:
-                    is_on_ridge = True
-                if is_on_ridge and x + 1 < len(extracted_line) and extracted_line[x] == 0 and extracted_line[x + 1] == 255:
-                    count += 1
-                    is_on_ridge = False
 
             # Blur the binary image and apply Sobel gradient in Y direction
             # throw white and black and compute mean, the greater the value
@@ -574,7 +562,6 @@ class Fingerprint:
 
             # Calculate the mean
             candidate_results.append(np.mean(edge_detection))
-            result_count.append(count)
 
         max_sobel_value = max(candidate_results)
         angle = candidate_results.index(max_sobel_value)
@@ -583,12 +570,22 @@ class Fingerprint:
         self.pependicular = Image(make_image(
             mask_ridges, angle, angle_base, cx, cy, draw=True))
 
-        # Apply the mask and rotation on the image
-        clahe_grayscale_extracted = Image(cv2.bitwise_and(self.grayscale_clahe.image,
-                                                          self.grayscale_clahe.image, mask=self.mask.image))
+        # Count number of lines
+        extracted_line, cx_rot, cy_rot = make_image(
+            mask_ridges, angle, angle_base, cx, cy, draw=False, image=False)
+        extracted_line = extracted_line[:cy_rot, cx_rot]
+        ridge_count = 0
+        is_on_ridge = False
+        for x in range(len(extracted_line)):
+            if x + 1 < len(extracted_line) and extracted_line[x] == 255 and extracted_line[x + 1] == 0:
+                is_on_ridge = True
+            if is_on_ridge and x + 1 < len(extracted_line) and extracted_line[x] == 0 and extracted_line[x + 1] == 255:
+                ridge_count += 1
+                is_on_ridge = False
 
+        # Apply the mask and rotation on the image
         self.clahe_grayscale_rotated = Image(make_image(
-            clahe_grayscale_extracted, angle, angle_base, cx, cy, draw=False))
+            self.grayscale_clahe_masked, angle, angle_base, cx, cy, draw=False))
 
         extracted_grayscale_line = self.clahe_grayscale_rotated.image[:cy_rot, cx_rot]
 
@@ -598,29 +595,48 @@ class Fingerprint:
                 extracted_grayscale_line = extracted_grayscale_line[i:]
                 break
 
+        # Remove masked parts
+        processed_extracted = []
+
+        black_threshold = 10
+        index = -1
+        black_count = 0
+        for i in range(len(extracted_grayscale_line)):
+            if extracted_grayscale_line[i] == 0:
+                black_count += 1
+                if black_count == black_threshold:
+                    index = 10
+                elif black_count > black_threshold:
+                    index += 1
+            else:
+                if index != -1:
+                    processed_extracted = processed_extracted[:-index]
+                    index = -1
+                    black_count = 0
+                else:
+                    black_count = 0
+            processed_extracted.append(extracted_grayscale_line[i])
+
+        extracted_grayscale_line = np.array(processed_extracted)
+
         self.json['papillary_crosscut'] = {
             "angle": angle * angle_base,
-            "ridges_binary_count": result_count[angle]
+            "ridges_binary_count": ridge_count
         }
 
-        return extracted_grayscale_line, count
+        return extracted_grayscale_line
 
     def generate_images(self, path, ext=".jpeg") -> None:
-        Image.save(self.vertical_lines.image, path,
-                   f"{self.name}_lines_vertical", ext)
-        Image.save(self.horizontal_lines.image, path,
-                   f"{self.name}_lines_horizontal", ext)
-        Image.save(self.lines.image, path,
-                   f"{self.name}_lines", ext)
-        Image.save(self.clahe_grayscale_color.image, path,
-                   f"{self.name}_center", ext)
-        Image.save(self.pependicular.image, path,
-                   f"{self.name}_pependicular", ext)
-        Image.save(self.clahe_grayscale_rotated.image, path,
-                   f"{self.name}_clahe_grayscale_rotated", ext)
+        self.vertical_lines.save(path, f"{self.name}_lines_vertical", ext)
+        self.horizontal_lines.save(path, f"{self.name}_lines_horizontal", ext)
+        self.lines.save(path, f"{self.name}_lines", ext)
+        self.clahe_grayscale_center.save(path, f"{self.name}_center", ext)
+        self.pependicular.save(path, f"{self.name}_pependicular", ext)
+        self.clahe_grayscale_rotated.save(
+            path, f"{self.name}_clahe_grayscale_rotated", ext)
 
-        self.fig_sin.savefig(f"{self.name}_sin.png")
-        self.fig_thick.savefig(f"{self.name}_thick.png")
+        Image.save_fig(self.fig_sin, path, f"{self.name}_sin", ext)
+        Image.save_fig(self.fig_thick, path, f"{self.name}_thick", ext)
 
     def show(self) -> None:
         # Image.show(self.raw.image, "Raw", scale=0.5)

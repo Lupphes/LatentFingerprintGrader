@@ -99,6 +99,13 @@ class Image:
     def apply_mask(self, mask: 'Image') -> None:
         self.image = cv2.bitwise_and(self.image, self.image, mask=mask.image)
 
+    def mask_fill(self):
+        contour, _ = cv2.findContours(
+            self.image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        for cnt in contour:
+            cv2.drawContours(self.image, [cnt], 0, 255, -1)
+
     @staticmethod
     def show(image, name="Image", scale=1.0):
         if scale != 1.0:
@@ -109,10 +116,9 @@ class Image:
                 image, dimensions, interpolation=cv2.INTER_AREA)
         cv2.imshow(name, image)
 
-    @staticmethod
-    def save(image, path, name, ext):
+    def save(self, path, name, ext):
         fname = os.path.join(path, name + ext)
-        cv2.imwrite(fname, image)
+        cv2.imwrite(fname, self.image)
 
     @staticmethod
     def save_fig(figure, path, name, ext):
