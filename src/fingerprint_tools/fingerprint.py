@@ -1,23 +1,19 @@
 import os
-from pathlib import Path
 import cv2
+import logging
 import numpy as np
-import pickle
-import json
-import math
+from pathlib import Path
 from matplotlib import pyplot as plt
 from scipy.integrate import simpson
 from scipy.signal import butter, filtfilt
-import logging
-from datetime import datetime
+
 
 from .contrast_types import ContrastTypes, ThresholdFlags
-from .definitions import MinutuaeThreshold, RMSEThreshold, NumberOfRidgesThreshold
 from .exception import FileError, ArrgumentError, UndefinedVariableError
 from .image import Image
 from .report import Report
 
-from typing import Dict, Any, Union, Tuple
+from typing import Dict, Union, Tuple
 
 
 class Fingerprint:
@@ -39,8 +35,7 @@ class Fingerprint:
         self.clahe_grayscale_color = Image(cv2.cvtColor(
             self.grayscale_clahe.image, cv2.COLOR_GRAY2RGB))
 
-        # self.json: Report = Report()
-        self.json: Dict = {}
+        self.report: Report = Report()
 
     def read_raw_image(self, path: Path, block_size=None) -> np.ndarray:
         """
@@ -129,22 +124,11 @@ class Fingerprint:
         if self.common_minutiae is None:
             raise UndefinedVariableError()
 
-        number_of_cmp = len(
-            np.array(self.common_minutiae[thresh], dtype=np.uint64))
+        minuatue_points = np.array(
+            self.common_minutiae[thresh], dtype=np.uint64)
+        number_of_cmp = len(minuatue_points)
 
-        text_description = ""
-        if number_of_cmp > MinutuaeThreshold.BEYOND_RESONABLE_DOUBT:
-            text_description = "Enough minutiae points for identification beyond reasonable doubt"
-        elif number_of_cmp <= MinutuaeThreshold.BEYOND_RESONABLE_DOUBT and number_of_cmp > MinutuaeThreshold.TWELVE_GUIDELINE:
-            text_description = "Enough minutiae points for identification with possible error"
-        else:
-            text_description = "Not enough minutiae points for identification"
-
-        # TODO: Add points to JSON
-        self.json['minutuae_points'] = {
-            "quantity": number_of_cmp,
-            "description": text_description
-        }
+        self.report.report_minuatue(number_of_cmp, minuatue_points)
 
     def grade_contrast(self) -> None:
         # TODO: Improve Michaleson, Weber?, Calculate michelson with mask
@@ -179,18 +163,7 @@ class Fingerprint:
         rmse: np.float64 = np.mean(np.square(np.subtract(
             extracted_ridges.image, extracted_valleys.image)))
 
-        rmse_description = ""
-
-        if rmse > RMSEThreshold.VALID:
-            rmse_description = "The contrast has proven that the fingerprint is valid"
-        else:
-            rmse_description = "The contrast has proven that the fingerprint is not valid"
-
-        self.json['contrast'] = {
-            "rmse": float(rmse),
-            "michelson_contrast_pct": float(michelson_contrast),
-            "description": rmse_description
-        }
+        self.report.report_contrast(rmse, michelson_contrast)
 
     def grade_lines(self, draw=True) -> None:
         # TODO: Calculate bounding box, Normalize count for length -> pixels
@@ -293,33 +266,15 @@ class Fingerprint:
             dicto[f"{vertical_axis[i]}:{horizontal_axis[i]}"] = [
                 vertical_count[i], horizontal_count[i]]
 
-        total_mean = np.mean(np.concatenate([horizontal, vertical]))
-        description = ""
-
-        if total_mean > NumberOfRidgesThreshold.EXCELENT:
-            description = "Fingerprint has a great number of papillary ridges"
-        elif total_mean > NumberOfRidgesThreshold.GOOD:
-            description = "Fingerprint has a good amount of papillary ridges"
-        elif total_mean > NumberOfRidgesThreshold.ENOUGH:
-            description = "Fingerprint has enough papillary ridges for identification"
-        else:
-            description = "Fingerprint does not have enough papillary ridges for identification"
-
-        self.json['papilary_ridges'] = {
-            "higest_frequency": dicto,
-            "vertical_mean": np.mean(vertical),
-            "horizontal_mean": np.mean(horizontal),
-            "total_mean": total_mean,
-            "expected_core": [np.mean(vertical_axis), np.mean(horizontal_axis)],
-            "description": description
-        }
+        self.report.report_lines(horizontal, vertical,
+                                 vertical_axis, horizontal_axis, dicto)
 
         # Images to generate later
         self.vertical_lines = Image(mask_ridges_color_vertical)
         self.horizontal_lines = Image(mask_ridges_color_horizontal)
         self.lines = Image(mask_ridges_color)
 
-    def grade_sinusoidal(self, line_signal, draw=True) -> None:
+    def grade_sinusoidal(self, line_signal: np.ndarray, draw=True) -> None:
         # TODO: Autoencoder, Expected core, Only one ridge
 
         # Source: https://github.com/guillaume-chevalier/filtering-stft-and-laplace-transform
@@ -385,15 +340,9 @@ class Fingerprint:
 
         D_D = (A_FP/A_SIN - 1) * 100
 
-        self.json['papillary_crosscut']['sinusoidal_shape'] = {
-            "ridges_low_pass_count": ridge,
-            "sinus_offset": index_best_a,
-            "A_FP": A_FP,
-            "A_SIN": A_SIN,
-            "D_D": D_D
-        }
+        self.report.report_sinusoidal(ridge, index_best_a, A_FP, A_SIN, D_D)
 
-    def grade_thickness(self, line_signal, draw=True) -> None:
+    def grade_thickness(self, line_signal: np.ndarray, draw=True) -> None:
         # TODO: Autoencoder, Expected core
         average_thickness = 0.033  # mm
 
@@ -431,31 +380,16 @@ class Fingerprint:
 
         # Transform the pixels into readable format
         base = 2.54 / self.dpi
-        result = []
+        ridge_thickness = []
         for item in ridges_list:
             Th = base * len(item)
             Dth = (Th/average_thickness - 1) * 100
-            result.append(Dth)
+            ridge_thickness.append(Dth)
 
-        self.json['papillary_crosscut']['thickness'] = {
-            "ridges_low_pass_count": len(result),
-            "thickness_difference": result
-        }
+        self.report.report_thickness(ridge_thickness)
 
-    def generate_rating(self, dirname: Path) -> Union[int, int]:
-        filename = os.path.join(dirname, 'log.json')
-        if not (os.path.isfile(filename) and os.access(filename, os.R_OK)):
-            with open(filename, 'w') as file:
-                json.dump({}, file, indent=4)
-
-        with open(filename, 'r+') as file:
-            file_data = json.load(file)
-            file_data[self.name] = self.json
-            file.seek(0)
-            json.dump(file_data, file, indent=4)
-
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+    def generate_rating(self, dirname: Path, name='log.json') -> Union[int, int]:
+        self.report.generate_report(dirname, name, self.name)
 
     def get_center_cords(self, draw=True) -> Union[int, int]:
         # Find countours and therfore draw the center
@@ -482,9 +416,7 @@ class Fingerprint:
                                 cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
                     self.clahe_grayscale_center = clahe_grayscale_center
 
-        self.json['papillary_crosscut'] = {
-            "mask_center": [cx, cy]
-        }
+        self.report.report_center_cords(cx, cy)
 
         return cx, cy
 
@@ -619,14 +551,11 @@ class Fingerprint:
 
         extracted_grayscale_line = np.array(processed_extracted)
 
-        self.json['papillary_crosscut'] = {
-            "angle": angle * angle_base,
-            "ridges_binary_count": ridge_count
-        }
+        self.report.report_pependicular(angle, angle_base, ridge_count)
 
         return extracted_grayscale_line
 
-    def generate_images(self, path, ext=".jpeg") -> None:
+    def generate_images(self, path: Path, ext=".jpeg") -> None:
         self.vertical_lines.save(path, f"{self.name}_lines_vertical", ext)
         self.horizontal_lines.save(path, f"{self.name}_lines_horizontal", ext)
         self.lines.save(path, f"{self.name}_lines", ext)

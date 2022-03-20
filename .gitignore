@@ -146,3 +146,4 @@ models/
 test/
 
 notes.txt
+*.json

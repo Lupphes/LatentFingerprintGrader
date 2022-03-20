@@ -3,6 +3,9 @@ import os
 import cv2
 import numpy as np
 
+from pathlib import Path
+from matplotlib import pyplot as plt
+
 from .contrast_types import ContrastTypes, ThresholdFlags
 from .cartext import Cartext
 
@@ -13,19 +16,13 @@ class Image:
     def __init__(self, image):
         self.image: Any = image
 
-    def get_image(self):
-        return self.image
-
-    def set_image(self, image):
-        self.image = image
-
-    def image_to_grayscale(self):
+    def image_to_grayscale(self) -> None:
         self.image = cv2.cvtColor(self.image, cv2.COLOR_BGR2GRAY)
 
-    def calculate_histogram(self):
+    def calculate_histogram(self) -> None:
         return cv2.calcHist(self.image, [0], None, [256], [0, 256])
 
-    def calculate_threshold(self, threshold_type=ThresholdFlags.OTSU, specified_threshold=128, maxval=255):
+    def calculate_threshold(self, threshold_type=ThresholdFlags.OTSU, specified_threshold=128, maxval=255) -> None:
         threshold = None
         if threshold_type == ThresholdFlags.GAUSSIAN:
             self.image = cv2.adaptiveThreshold(self.image, maxval, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
@@ -48,10 +45,10 @@ class Image:
 
         return threshold
 
-    def invert_binary(self):
+    def invert_binary(self) -> None:
         self.image = cv2.bitwise_not(self.image)
 
-    def apply_contrast(self, contrast_type=ContrastTypes.CLAHE):
+    def apply_contrast(self, contrast_type=ContrastTypes.CLAHE) -> None:
         if contrast_type == ContrastTypes.CLAHE:
             clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
             self.image = clahe.apply(self.image)
@@ -70,7 +67,7 @@ class Image:
             raise NotImplementedError(
                 "This part of program was not implemented yet. Wait for updates")
 
-    def apply_sobel_2d(self):
+    def apply_sobel_2d(self) -> None:
         # The Sobel kernels can also be thought of as 3×3 approximations to first-derivative-of-Gaussian kernels.
         Dxf = cv2.Sobel(self.image, cv2.CV_8UC1, 1, 0, ksize=3)  # X
         Dyf = cv2.Sobel(self.image, cv2.CV_8UC1, 0, 1, ksize=3)  # Y
@@ -79,35 +76,39 @@ class Image:
 
         return Dxf, Dyf
 
-    def apply_gabor(self, ksize=31, sigma=1, theta=0, lambd=1.0, gamma=0.02, psi=0):
+    def apply_gabor(self, ksize=31, sigma=1, theta=0, lambd=1.0, gamma=0.02, psi=0) -> None:
         kernel = cv2.getGaborKernel(
             (ksize, ksize), sigma=sigma, theta=theta, lambd=lambd, gamma=gamma, psi=psi)
         self.image = cv2.filter2D(
             self.image, cv2.CV_64F, kernel)
 
-    def apply_median(self, ksize=3):
+    def apply_median(self, ksize=3) -> None:
         self.image = cv2.medianBlur(self.image, ksize=ksize)
 
-    def apply_gaussian(self, ksize=23, sigma=8):
+    def apply_gaussian(self, ksize=23, sigma=8) -> None:
         self.image = cv2.GaussianBlur(
             self.image, (ksize, ksize), cv2.BORDER_DEFAULT)
 
-    def apply_box_filer(self, ddepth=0, ksize=(21, 21), anchor=(-1, -1), normalize=True):
+    def apply_box_filer(self, ddepth=0, ksize=(21, 21), anchor=(-1, -1), normalize=True) -> None:
         self.image = cv2.boxFilter(self.image, ddepth, ksize, anchor=anchor,
                                    normalize=normalize, borderType=cv2.BORDER_DEFAULT)
 
     def apply_mask(self, mask: 'Image') -> None:
         self.image = cv2.bitwise_and(self.image, self.image, mask=mask.image)
 
-    def mask_fill(self):
+    def mask_fill(self) -> None:
         contour, _ = cv2.findContours(
             self.image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         for cnt in contour:
             cv2.drawContours(self.image, [cnt], 0, 255, -1)
 
+    def save(self, path: Path, name: str, ext: str) -> None:
+        fname = os.path.join(path, name + ext)
+        cv2.imwrite(fname, self.image)
+
     @staticmethod
-    def show(image, name="Image", scale=1.0):
+    def show(image: 'Image', name="Image", scale=1.0) -> None:
         if scale != 1.0:
             width = int(image.shape[1] * scale)
             height = int(image.shape[0] * scale)
@@ -116,11 +117,7 @@ class Image:
                 image, dimensions, interpolation=cv2.INTER_AREA)
         cv2.imshow(name, image)
 
-    def save(self, path, name, ext):
-        fname = os.path.join(path, name + ext)
-        cv2.imwrite(fname, self.image)
-
     @staticmethod
-    def save_fig(figure, path, name, ext):
+    def save_fig(figure: plt.Figure, path: Path, name: str, ext: str) -> None:
         fname = os.path.join(path, name + ext)
         figure.savefig(fname)
