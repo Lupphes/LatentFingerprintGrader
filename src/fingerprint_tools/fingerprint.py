@@ -88,23 +88,23 @@ class Fingerprint:
         return extractor_class
 
     def generate_helpers(self) -> None:
-        self.aec_masked = Image(cv2.bitwise_and(
-            self.aec.image, self.aec.image, mask=self.mask.image))
+        self.aec_masked = Image(self.aec.image)
+        self.aec_masked.apply_mask(mask=self.mask)
 
-        self.bin_image_masked = Image(cv2.bitwise_and(
-            self.bin_image.image, self.bin_image.image, mask=self.mask.image))
+        self.bin_image_masked = Image(self.bin_image.image)
+        self.bin_image_masked.apply_mask(mask=self.mask)
 
-        self.grayscale_masked = Image(cv2.bitwise_and(
-            self.grayscale.image, self.grayscale.image, mask=self.mask.image))
+        self.grayscale_masked = Image(self.grayscale.image)
+        self.grayscale_masked.apply_mask(mask=self.mask)
 
-        self.grayscale_clahe_masked = Image(cv2.bitwise_and(
-            self.grayscale_clahe.image, self.grayscale_clahe.image, mask=self.mask.image))
+        self.grayscale_clahe_masked = Image(self.grayscale_clahe.image)
+        self.grayscale_clahe_masked.apply_mask(mask=self.mask)
 
         self.mask_filled = Image(self.mask.image.copy())
         self.mask_filled.mask_fill()
 
-        self.bin_image_masked_filled = Image(cv2.bitwise_and(
-            self.bin_image.image, self.bin_image.image, mask=self.mask_filled.image))
+        self.bin_image_masked_filled = Image(self.bin_image.image)
+        self.bin_image_masked_filled.apply_mask(mask=self.mask_filled)
 
         self.figure_dict = {}
 
@@ -137,6 +137,7 @@ class Fingerprint:
 
     def grade_contrast(self) -> None:
         # TODO: Improve Michaleson, Weber?, Calculate michelson with mask
+        # https://stackoverflow.com/questions/68145161/using-python-opencv-to-calculate-vein-leaf-density
 
         # Create mask with valleys and ridges
         mask_ridges = Image(self.bin_image_masked.image)
@@ -484,7 +485,7 @@ class Fingerprint:
         return cx, cy
 
     def get_pependicular(self, cx: int, cy: int, angle_base=1):
-
+        # TODO: Optimalization (read in 4 directions) - rotate just till 90
         def rotate_image(image: Image, angle: int, center_col: int, center_row: int) -> Tuple[Image, int, int]:
             image = image.image
             row, col = image.shape
