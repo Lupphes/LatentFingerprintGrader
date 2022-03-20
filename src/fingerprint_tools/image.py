@@ -9,12 +9,12 @@ from matplotlib import pyplot as plt
 from .contrast_types import ContrastTypes, ThresholdFlags
 from .cartext import Cartext
 
-from typing import Any
+from typing import Any, Dict
 
 
 class Image:
     def __init__(self, image):
-        self.image: Any = image
+        self.image: np.ndarray = image
 
     def image_to_grayscale(self) -> None:
         self.image = cv2.cvtColor(self.image, cv2.COLOR_BGR2GRAY)
@@ -118,6 +118,9 @@ class Image:
         cv2.imshow(name, image)
 
     @staticmethod
-    def save_fig(figure: plt.Figure, path: Path, name: str, ext: str) -> None:
-        fname = os.path.join(path, name + ext)
-        figure.savefig(fname)
+    def save_fig(dictionary: Dict, path: Path, name: str, ext: str) -> None:
+        for variant in dictionary:
+            for algorithm in dictionary[variant]:
+                fname = os.path.join(
+                    path, f"{name}_{algorithm}_{variant}{ext}")
+                dictionary[variant][algorithm].savefig(fname)

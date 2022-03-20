@@ -41,7 +41,7 @@ class Report:
             "description": rmse_description
         }
 
-    def report_lines(self, horizontal: list, vertical: list, vertical_axis: list, horizontal_axis: list, dicto: Dict) -> None:
+    def report_lines(self, horizontal: list, vertical: list, vertical_axis: list, horizontal_axis: list, dicto: Dict, expected_core_x_off: int, expected_core_y_off: int) -> None:
         total_mean = np.mean(np.concatenate([horizontal, vertical]))
         description = ""
 
@@ -59,12 +59,17 @@ class Report:
             "vertical_mean": np.mean(vertical),
             "horizontal_mean": np.mean(horizontal),
             "total_mean": total_mean,
-            "expected_core": [np.mean(vertical_axis), np.mean(horizontal_axis)],
+            "expected_core": [expected_core_x_off, expected_core_y_off],
             "description": description
         }
 
-    def report_sinusoidal(self, ridge: int, index_best_a: np.float64, A_FP: np.float64, A_SIN: np.float64, D_D: np.float64) -> None:
-        self.report['papillary_crosscut']['sinusoidal_shape'] = {
+    def report_sinusoidal(self, ridge: int, index_best_a: np.float64, A_FP: np.float64, A_SIN: np.float64, D_D: np.float64, name: str) -> None:
+        if not 'papillary_crosscut' in self.report:
+            self.report['papillary_crosscut'] = {}
+        if not 'sinusoidal_shape' in self.report['papillary_crosscut']:
+            self.report['papillary_crosscut']['sinusoidal_shape'] = {}
+
+        self.report['papillary_crosscut']['sinusoidal_shape'][name] = {
             "ridges_low_pass_count": ridge,
             "sinus_offset": index_best_a,
             "A_FP": A_FP,
@@ -72,8 +77,13 @@ class Report:
             "D_D": D_D
         }
 
-    def report_thickness(self, ridge_thickness: np.ndarray) -> None:
-        self.report['papillary_crosscut']['thickness'] = {
+    def report_thickness(self, ridge_thickness: np.ndarray, name: str) -> None:
+        if not 'papillary_crosscut' in self.report:
+            self.report['papillary_crosscut'] = {}
+        if not 'thickness' in self.report['papillary_crosscut']:
+            self.report['papillary_crosscut']['thickness'] = {}
+
+        self.report['papillary_crosscut']['thickness'][name] = {
             "ridges_low_pass_count": len(ridge_thickness),
             "thickness_difference": ridge_thickness
         }
