@@ -165,11 +165,38 @@ class Fingerprint:
 
         self.report.report_contrast(rmse, michelson_contrast)
 
+    def remove_black_array(self, array, black_threshold=10) -> np.ndarray:
+        # Remove masked parts
+        processed_extracted = []
+
+        index = -1
+        black_count = 0
+        for i in range(len(array)):
+            if array[i] == 0:
+                black_count += 1
+                if black_count == black_threshold:
+                    index = 10
+                elif black_count > black_threshold:
+                    index += 1
+            else:
+                if index != -1:
+                    processed_extracted = processed_extracted[:-index]
+                    index = -1
+                    black_count = 0
+                else:
+                    black_count = 0
+            processed_extracted.append(array[i])
+
+        array = np.array(processed_extracted)
+
+        return array
+
     def grade_lines(self, draw=True) -> None:
-        # TODO: Calculate bounding box, Normalize count for length -> pixels
+        # TODO: Normalize count for length -> pixels
 
         # Define new copy of image
-        mask_ridges = Image(self.bin_image_masked.image)
+        mask_ridges, _, _ = self.cut_image(
+            self.mask_filled, self.bin_image_masked)
         row, col = mask_ridges.image.shape
         sample_line_len = 3
 
@@ -193,7 +220,6 @@ class Fingerprint:
                 if is_on_ridge and y + 1 < col and mask_ridges.image[x, y] == 0 and mask_ridges.image[x, y + 1] == 255:
                     count += 1
                     is_on_ridge = False
-
             if count != 0:
                 if draw:
                     startpoint = (0, x)
@@ -391,6 +417,12 @@ class Fingerprint:
     def generate_rating(self, dirname: Path, name='log.json') -> Union[int, int]:
         self.report.generate_report(dirname, name, self.name)
 
+    def cut_image(self, image_mask: Image, input_image: Image) -> Union[Image, int, int]:
+        contours, _ = cv2.findContours(
+            image_mask.image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        x, y, w, h = cv2.boundingRect(contours[0])
+        return Image(input_image.image[y:y+h, x:x+w]), x, y
+
     def get_center_cords(self, draw=True) -> Union[int, int]:
         # Find countours and therfore draw the center
         contour, _ = cv2.findContours(
@@ -422,7 +454,8 @@ class Fingerprint:
 
     def get_pependicular(self, cx: int, cy: int, angle_base=1):
 
-        def rotate_image(image, angle: int, center_col: int, center_row: int) -> Tuple[np.ndarray, int, int]:
+        def rotate_image(image: Image, angle: int, center_col: int, center_row: int) -> Tuple[Image, int, int]:
+            image = image.image
             row, col = image.shape
             squared_size: int = np.int(np.sqrt(row ** 2 + col ** 2))
             diff_col: int = squared_size - col
@@ -438,37 +471,32 @@ class Fingerprint:
             matrix = cv2.getRotationMatrix2D(image_center, angle, 1.0)
             image = cv2.warpAffine(
                 image, matrix, image.shape[1::-1], flags=cv2.INTER_NEAREST)
-            return image, center_col, center_row
-
-        def cut_image(image_mask, cropped_image) -> np.ndarray:
-            contours, _ = cv2.findContours(
-                image_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            x, y, w, h = cv2.boundingRect(contours[0])
-            return cropped_image[y:y+h, x:x+w], x, y
+            return Image(image), center_col, center_row
 
         def make_image(mask_ridges, index, angle_base, center_col, cy, draw=False, image=True) -> Union[np.ndarray, Tuple[np.ndarray, int, int]]:
             rotated_image, cx_rot, cy_rot = rotate_image(
-                mask_ridges.image, index*angle_base, center_col, cy)
+                mask_ridges, index*angle_base, center_col, cy)
             image_mask, _, _ = rotate_image(
-                self.mask_filled.image, index*angle_base, center_col, cy)
-            rotated_image, x_bb, y_bb = cut_image(
+                self.mask_filled, index*angle_base, center_col, cy)
+            rotated_image, x_bb, y_bb = self.cut_image(
                 image_mask, rotated_image)
 
             cx_rot -= x_bb
             cy_rot -= y_bb
 
             if draw:
-                rotated_image = cv2.cvtColor(rotated_image, cv2.COLOR_GRAY2RGB)
-                cv2.circle(rotated_image,
+                rotated_image.image = cv2.cvtColor(
+                    rotated_image.image, cv2.COLOR_GRAY2RGB)
+                cv2.circle(rotated_image.image,
                            (cx_rot, cy_rot), 7, (0, 0, 255), -1)
 
-                cv2.line(rotated_image, (cx_rot, cy_rot),
+                cv2.line(rotated_image.image, (cx_rot, cy_rot),
                          (cx_rot, 0), (0, 0, 255), 1)
 
             if image:
-                return rotated_image
+                return rotated_image.image
             else:
-                return rotated_image, cx_rot, cy_rot
+                return rotated_image.image, cx_rot, cy_rot
 
         # Prepare image variables for calculation
         mask_ridges = Image(self.bin_image_masked_filled.image)
@@ -528,28 +556,8 @@ class Fingerprint:
                 break
 
         # Remove masked parts
-        processed_extracted = []
-
-        black_threshold = 10
-        index = -1
-        black_count = 0
-        for i in range(len(extracted_grayscale_line)):
-            if extracted_grayscale_line[i] == 0:
-                black_count += 1
-                if black_count == black_threshold:
-                    index = 10
-                elif black_count > black_threshold:
-                    index += 1
-            else:
-                if index != -1:
-                    processed_extracted = processed_extracted[:-index]
-                    index = -1
-                    black_count = 0
-                else:
-                    black_count = 0
-            processed_extracted.append(extracted_grayscale_line[i])
-
-        extracted_grayscale_line = np.array(processed_extracted)
+        extracted_grayscale_line = self.remove_black_array(
+            extracted_grayscale_line)
 
         self.report.report_pependicular(angle, angle_base, ridge_count)
 
