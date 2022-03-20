@@ -4,12 +4,10 @@ import cv2
 import numpy as np
 
 from pathlib import Path
-from matplotlib import pyplot as plt
 
 from .contrast_types import ContrastTypes, ThresholdFlags
-from .cartext import Cartext
 
-from typing import Any, Dict
+from typing import Dict
 
 
 class Image:

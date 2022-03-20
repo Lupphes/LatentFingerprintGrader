@@ -111,16 +111,27 @@ class Fingerprint:
     def grade_fingerprint(self) -> None:
         self.grade_minutiae_points()
         self.grade_contrast()
-        self.grade_lines()
+        exp_x, exp_y = self.grade_lines()
 
-        cx, cy = self.get_center_cords()
-        gray_signal, aec_signal = self.get_pependicular(cx, cy)
+        cent_x, cent_y = self.get_center_cords()
+        gray_signal, aec_signal = self.get_pependicular(cent_x, cent_y)
+
+        # print((exp_x, exp_y), (cent_x, cent_y))
 
         self.grade_sinusoidal(gray_signal, 'gray')
         self.grade_thickness(gray_signal, 'gray')
 
         self.grade_sinusoidal(aec_signal, 'aec')
         self.grade_thickness(aec_signal, 'aec')
+
+        # Found core
+        # gray_signal_exp, aec_signal_exp = self.get_pependicular(exp_x, exp_y)
+
+        # self.grade_sinusoidal(gray_signal_exp, 'gray_core')
+        # self.grade_thickness(gray_signal_exp, 'gray_core')
+
+        # self.grade_sinusoidal(aec_signal_exp, 'aec_core')
+        # self.grade_thickness(aec_signal_exp, 'aec_core')
 
     def grade_minutiae_points(self, thresh=2) -> None:
         if 0 > thresh or thresh > 3:
@@ -198,7 +209,16 @@ class Fingerprint:
         return array
 
     def grade_lines(self, draw=True) -> None:
-        # TODO: Normalize count for length -> pixels
+        def create_candidates(dicto, name, value, cord, sample):
+            if (len(dicto[name]['candidates']) < sample):
+                dicto[name]['candidates'].append(value)
+                dicto[name]['axis'].append(cord)
+            else:
+                if min(dicto[name]['candidates']) < value:
+                    index = dicto[name]['candidates'].index(
+                        min(dicto[name]['candidates']))
+                    dicto[name]['candidates'][index] = value
+                    dicto[name]['axis'][index] = cord
 
         # Define new copy of image
         mask_ridges, offset_x, offset_y = self.cut_image(
@@ -209,20 +229,33 @@ class Fingerprint:
         # Define properties for output images
         thickness: int = 2
         color: Tuple[int, int, int] = (255, 0, 0)
-        mask_ridges_color: np.ndarray = cv2.cvtColor(
+        mask_ridges_color_count: np.ndarray = cv2.cvtColor(
             mask_ridges.image, cv2.COLOR_GRAY2RGB)
-        mask_ridges_color_horizontal: np.ndarray = mask_ridges_color.copy()
-        mask_ridges_color_vertical: np.ndarray = mask_ridges_color.copy()
+        mask_ridges_color_horizontal_count: np.ndarray = mask_ridges_color_count.copy()
+        mask_ridges_color_vertical_count: np.ndarray = mask_ridges_color_count.copy()
+
+        mask_ridges_color_density: np.ndarray = mask_ridges_color_count.copy()
+        mask_ridges_color_horizontal_density: np.ndarray = mask_ridges_color_count.copy()
+        mask_ridges_color_vertical_density: np.ndarray = mask_ridges_color_count.copy()
 
         mask_ridges_color_uncut: np.ndarray = cv2.cvtColor(
             self.bin_image_masked.image, cv2.COLOR_GRAY2RGB)
 
         # Count number of horizontal lines
-        horizontal: list = []
-        horizontal_count: list = []
-        horizontal_axis: list = []
+        horizontal = {
+            "count": {
+                "array": [],
+                "candidates": [],
+                "axis": []
+            },
+            "density": {
+                "array": [],
+                "candidates": [],
+                "axis": []
+            }
+        }
         count: int = 0
-        is_on_ridge = False
+        is_on_ridge: bool = False
         for x in range(0, row, self.block_size):
             for y in range(col):
                 if y + 1 < col and mask_ridges.image[x, y] == 255 and mask_ridges.image[x, y + 1] == 0:
@@ -234,25 +267,37 @@ class Fingerprint:
                 if draw:
                     startpoint = (0, x)
                     endpoint = (col, x)
-                    cv2.line(mask_ridges_color_horizontal, startpoint,
+                    cv2.line(mask_ridges_color_horizontal_count, startpoint,
                              endpoint, color, thickness)
-                    cv2.line(mask_ridges_color, startpoint,
+                    cv2.line(mask_ridges_color_count, startpoint,
                              endpoint, color, thickness)
-                horizontal.append(count)
-                if (len(horizontal_count) <= sample_line_len):
-                    horizontal_count.append(count)
-                    horizontal_axis.append(x)
-                else:
-                    if min(horizontal_count) < count:
-                        index = horizontal_count.index(min(horizontal_count))
-                        horizontal_count[index] = count
-                        horizontal_axis[index] = x
+
+                extracted = self.remove_black_array(mask_ridges.image[x, :])
+                density = count/len(extracted)
+
+                horizontal['count']['array'].append(count)
+                horizontal['density']['array'].append(density)
+
+                create_candidates(horizontal, 'count',
+                                  count, x, sample_line_len)
+
+                create_candidates(horizontal, 'density',
+                                  density, x, sample_line_len)
                 count = 0
 
         # Count number of vertical lines
-        vertical: list = []
-        vertical_count: list = []
-        vertical_axis: list = []
+        vertical = {
+            "count": {
+                "array": [],
+                "candidates": [],
+                "axis": []
+            },
+            "density": {
+                "array": [],
+                "candidates": [],
+                "axis": []
+            }
+        }
         count: int = 0
         is_on_ridge: bool = False
         for y in range(0, col, self.block_size):
@@ -266,66 +311,112 @@ class Fingerprint:
                 if draw:
                     startpoint = (y, 0)
                     endpoint = (y, row)
-                    cv2.line(mask_ridges_color_vertical, startpoint,
+                    cv2.line(mask_ridges_color_vertical_count, startpoint,
                              endpoint, color, thickness)
-                    cv2.line(mask_ridges_color, startpoint,
+                    cv2.line(mask_ridges_color_count, startpoint,
                              endpoint, color, thickness)
-                vertical.append(count)
-                if (len(vertical_count) <= sample_line_len):
-                    vertical_count.append(count)
-                    vertical_axis.append(y)
-                else:
-                    if min(vertical_count) <= count:
-                        index = vertical_count.index(min(vertical_count))
-                        vertical_count[index] = count
-                        vertical_axis[index] = y
+
+                extracted = self.remove_black_array(mask_ridges.image[:, y])
+                density = count/len(extracted)
+
+                vertical['count']['array'].append(count)
+                vertical['density']['array'].append(density)
+
+                create_candidates(vertical, 'count',
+                                  count, y, sample_line_len)
+
+                create_candidates(vertical, 'density',
+                                  density, y, sample_line_len)
                 count = 0
 
         color_mark = (0, 255, 0)
 
         # Create the dictionary for output
-        dicto: Dict = {}
+        cord_count: Dict = {}
+        cord_density: Dict = {}
         for i in range(sample_line_len):
             if draw:
-                startpoint = (0, horizontal_axis[i])
-                endpoint = (col, horizontal_axis[i])
-                cv2.line(mask_ridges_color_horizontal, startpoint,
+                startpoint = (0, horizontal['count']['axis'][i])
+                endpoint = (col, horizontal['count']['axis'][i])
+                cv2.line(mask_ridges_color_horizontal_count, startpoint,
                          endpoint, color_mark, thickness)
-                cv2.line(mask_ridges_color, startpoint,
+                cv2.line(mask_ridges_color_count, startpoint,
                          endpoint, color_mark, thickness)
-                startpoint = (vertical_axis[i], 0)
-                endpoint = (vertical_axis[i], row)
-                cv2.line(mask_ridges_color_vertical, startpoint,
+                startpoint = (vertical['count']['axis'][i], 0)
+                endpoint = (vertical['count']['axis'][i], row)
+                cv2.line(mask_ridges_color_vertical_count, startpoint,
                          endpoint, color_mark, thickness)
-                cv2.line(mask_ridges_color, startpoint,
+                cv2.line(mask_ridges_color_count, startpoint,
                          endpoint, color_mark, thickness)
-            dicto[f"{vertical_axis[i]+ offset_x}:{horizontal_axis[i]+ offset_y}"] = [
-                vertical_count[i], horizontal_count[i]]
 
-        expected_core_x: int = (np.int(np.mean(vertical_axis)))
-        expected_core_y: int = (np.int(np.mean(horizontal_axis)))
+                startpoint = (0, horizontal['density']['axis'][i])
+                endpoint = (col, horizontal['density']['axis'][i])
+                cv2.line(mask_ridges_color_horizontal_density, startpoint,
+                         endpoint, color_mark, thickness)
+                cv2.line(mask_ridges_color_density, startpoint,
+                         endpoint, color_mark, thickness)
+
+                startpoint = (vertical['density']['axis'][i], 0)
+                endpoint = (vertical['density']['axis'][i], row)
+                cv2.line(mask_ridges_color_vertical_density, startpoint,
+                         endpoint, color_mark, thickness)
+                cv2.line(mask_ridges_color_density, startpoint,
+                         endpoint, color_mark, thickness)
+
+            cord_count[f"{vertical['count']['axis'][i]+ offset_x}:{horizontal['count']['axis'][i]+ offset_y}"] = [
+                vertical['count']['candidates'][i], horizontal['count']['candidates'][i]]
+
+            cord_density[f"{vertical['density']['axis'][i]+ offset_x}:{horizontal['density']['axis'][i]+ offset_y}"] = [
+                vertical['density']['candidates'][i], horizontal['density']['candidates'][i]]
+
+        expected_core_x: int = (np.int(np.mean(vertical['density']['axis'])))
+        expected_core_y: int = (np.int(np.mean(horizontal['density']['axis'])))
 
         expected_core_x_off: int = expected_core_x + offset_x
         expected_core_y_off: int = expected_core_y + offset_y
 
         if draw:
-            cv2.circle(mask_ridges_color, (expected_core_x,
-                                           expected_core_y), 7, (0, 0, 255), -1)
-            cv2.putText(mask_ridges_color, "center",
-                        (expected_core_x - 45, expected_core_y - 20), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 255), 2)
+            cv2.circle(mask_ridges_color_count, (expected_core_x,
+                                                 expected_core_y), 7, (0, 0, 255), -1)
+            cv2.putText(mask_ridges_color_count, "core",
+                        (expected_core_x - 35, expected_core_y - 20), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 255), 2)
 
             cv2.circle(mask_ridges_color_uncut, (expected_core_x_off,
                                                  expected_core_y_off), 7, (0, 0, 255), -1)
-            cv2.putText(mask_ridges_color_uncut, "center",
-                        (expected_core_x_off - 45, expected_core_y_off - 20), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 255), 2)
+            cv2.putText(mask_ridges_color_uncut, "core",
+                        (expected_core_x_off - 35, expected_core_y_off - 20), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 255), 2)
 
-        self.report.report_lines(horizontal, vertical,
-                                 vertical_axis, horizontal_axis, dicto, expected_core_x_off, expected_core_y_off)
+            cv2.circle(mask_ridges_color_density, (expected_core_x,
+                                                   expected_core_y), 7, (0, 0, 255), -1)
+            cv2.putText(mask_ridges_color_density, "core",
+                        (expected_core_x - 35, expected_core_y - 20), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 255), 2)
+
+        lines_dict = {
+            "vertical": vertical,
+            "horizontal": horizontal
+        }
+
+        lines_append = {
+            "expected_core": [expected_core_x_off, expected_core_y_off],
+            "higest_frequency": cord_count,
+            "heigest_density": cord_density
+        }
+
+        self.report.report_lines(lines_dict, lines_append)
         # Images to generate later
-        self.vertical_lines = Image(mask_ridges_color_vertical)
-        self.horizontal_lines = Image(mask_ridges_color_horizontal)
-        self.lines = Image(mask_ridges_color)
+        self.vertical_lines = Image(mask_ridges_color_vertical_count)
+        self.horizontal_lines = Image(mask_ridges_color_horizontal_count)
+        self.lines = Image(mask_ridges_color_count)
         self.mask_ridges_color_uncut = Image(mask_ridges_color_uncut)
+
+        self.mask_ridges_color_vertical_density = Image(
+            mask_ridges_color_vertical_density)
+        self.mask_ridges_color_horizontal_density = Image(
+            mask_ridges_color_horizontal_density)
+        self.mask_ridges_color_density = Image(
+            mask_ridges_color_vertical_density)
+
+        return expected_core_x_off, expected_core_y_off
 
     def grade_sinusoidal(self, line_signal: np.ndarray, name: str, draw=True) -> None:
         # TODO: Expected core, Only one ridge
@@ -612,12 +703,21 @@ class Fingerprint:
         self.lines.save(path, f"{self.name}_lines", ext)
         self.mask_ridges_color_uncut.save(
             path, f"{self.name}_lines_uncut", ext)
+
         self.clahe_grayscale_center.save(path, f"{self.name}_center", ext)
+
         self.pependicular.save(path, f"{self.name}_pependicular", ext)
         self.clahe_grayscale_rotated.save(
             path, f"{self.name}_clahe_grayscale_rotated", ext)
         self.aec_masked_rotated.save(
             path, f"{self.name}_aec_masked_rotated", ext)
+
+        self.mask_ridges_color_vertical_density.save(
+            path, f"{self.name}_mask_ridges_color_vertical_density", ext)
+        self.mask_ridges_color_horizontal_density.save(
+            path, f"{self.name}_mask_ridges_color_horizontal_density", ext)
+        self.mask_ridges_color_density.save(
+            path, f"{self.name}_mask_ridges_color_density", ext)
 
         Image.save_fig(self.figure_dict, path, f"{self.name}", ext)
 

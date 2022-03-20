@@ -41,8 +41,13 @@ class Report:
             "description": rmse_description
         }
 
-    def report_lines(self, horizontal: list, vertical: list, vertical_axis: list, horizontal_axis: list, dicto: Dict, expected_core_x_off: int, expected_core_y_off: int) -> None:
-        total_mean = np.mean(np.concatenate([horizontal, vertical]))
+    def report_lines(self, lines_dict: Dict, lines_append: Dict) -> None:
+        total_mean = np.mean(np.concatenate(
+            [
+                lines_dict['horizontal']['count']['array'],
+                lines_dict['vertical']['count']['array']
+            ]
+        ))
         description = ""
 
         if total_mean > NumberOfRidgesThreshold.EXCELENT:
@@ -55,13 +60,14 @@ class Report:
             description = "Fingerprint does not have enough papillary ridges for identification"
 
         self.report['papilary_ridges'] = {
-            "higest_frequency": dicto,
-            "vertical_mean": np.mean(vertical),
-            "horizontal_mean": np.mean(horizontal),
+            "vertical_mean": np.mean(lines_dict['horizontal']['count']['array']),
+            "horizontal_mean": np.mean(lines_dict['vertical']['count']['array']),
             "total_mean": total_mean,
-            "expected_core": [expected_core_x_off, expected_core_y_off],
             "description": description
         }
+
+        self.report['papilary_ridges'] = {
+            **self.report['papilary_ridges'], **lines_append}
 
     def report_sinusoidal(self, ridge: int, index_best_a: np.float64, A_FP: np.float64, A_SIN: np.float64, D_D: np.float64, name: str) -> None:
         if not 'papillary_crosscut' in self.report:
