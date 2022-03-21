@@ -4,7 +4,7 @@ import cv2
 import logging
 import numpy as np
 from pathlib import Path
-from matplotlib import pyplot as plt
+from matplotlib import image, pyplot as plt
 from scipy.integrate import simpson
 from scipy.signal import butter, filtfilt
 
@@ -149,7 +149,7 @@ class Fingerprint:
         self.report.report_minuatue(number_of_cmp, minuatue_points)
 
     def grade_contrast(self) -> None:
-        # TODO: Improve Michaleson, Weber?, Calculate michelson with mask
+        # TODO: Weber?
         # https://stackoverflow.com/questions/68145161/using-python-opencv-to-calculate-vein-leaf-density
 
         # Create mask with valleys and ridges
@@ -160,17 +160,20 @@ class Fingerprint:
         mask_valleys.apply_mask(self.mask)
 
         # Extracted them from the image
-        extracted_ridges = Image(self.grayscale_clahe.image)
+        extracted_ridges: Image = Image(self.grayscale_clahe.image)
         extracted_ridges.apply_mask(mask_ridges)
 
-        extracted_valleys = Image(self.grayscale_clahe.image)
+        extracted_valleys: Image = Image(self.grayscale_clahe.image)
         extracted_valleys.apply_mask(mask_valleys)
 
         # Michelson contrast
         # Source: https://stackoverflow.com/questions/57256159/how-extract-contrast-level-of-a-photo-opencv
         kernel = np.ones((4, 4), np.uint8)
-        reg_min = cv2.erode(self.grayscale_clahe.image, kernel, iterations=1)
-        reg_max = cv2.dilate(self.grayscale_clahe.image, kernel, iterations=1)
+
+        cut_gray, _, _ = self.cut_image(self.mask, self.grayscale_clahe)
+
+        reg_min = cv2.erode(cut_gray.image, kernel, iterations=1)
+        reg_max = cv2.dilate(cut_gray.image, kernel, iterations=1)
 
         reg_min = reg_min.astype(np.float64)
         reg_max = reg_max.astype(np.float64)
@@ -421,7 +424,7 @@ class Fingerprint:
         return expected_core_x_off, expected_core_y_off
 
     def grade_sinusoidal(self, line_signal: np.ndarray, name: str, draw=True) -> None:
-        # TODO: Expected core, Only one ridge
+        # TODO: Only one ridge
 
         # Source: https://github.com/guillaume-chevalier/filtering-stft-and-laplace-transform
         def butter_lowpass(cutoff, nyq_freq, order=4):
@@ -492,7 +495,6 @@ class Fingerprint:
             ridge, index_best_a, A_FP, A_SIN, D_D, name)
 
     def grade_thickness(self, line_signal: np.ndarray, name: str, draw=True) -> None:
-        # TODO: Expected core
         average_thickness = 0.033  # mm
 
         # 18% defined by literature
