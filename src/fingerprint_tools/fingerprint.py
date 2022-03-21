@@ -1,4 +1,5 @@
 import os
+from unicodedata import name
 import cv2
 import logging
 import numpy as np
@@ -8,7 +9,7 @@ from scipy.integrate import simpson
 from scipy.signal import butter, filtfilt
 
 
-from .contrast_types import ContrastTypes, ThresholdFlags
+from .contrast_types import ContrastTypes
 from .exception import FileError, ArrgumentError, UndefinedVariableError
 from .image import Image
 from .report import Report
@@ -112,11 +113,11 @@ class Fingerprint:
         self.grade_minutiae_points()
         self.grade_contrast()
         exp_x, exp_y = self.grade_lines()
+        cent_x, cent_y = self.get_center_cords('mask_center')
 
-        cent_x, cent_y = self.get_center_cords()
-        gray_signal, aec_signal = self.get_pependicular(cent_x, cent_y)
-
-        # print((exp_x, exp_y), (cent_x, cent_y))
+        # With mask center
+        gray_signal, aec_signal = self.get_pependicular(
+            cent_x, cent_y, name='mask_center')
 
         self.grade_sinusoidal(gray_signal, 'gray')
         self.grade_thickness(gray_signal, 'gray')
@@ -124,14 +125,15 @@ class Fingerprint:
         self.grade_sinusoidal(aec_signal, 'aec')
         self.grade_thickness(aec_signal, 'aec')
 
-        # Found core
-        # gray_signal_exp, aec_signal_exp = self.get_pependicular(exp_x, exp_y)
+        # With estimated core
+        gray_signal_exp, aec_signal_exp = self.get_pependicular(
+            exp_x, exp_y, name='estimated_core')
 
-        # self.grade_sinusoidal(gray_signal_exp, 'gray_core')
-        # self.grade_thickness(gray_signal_exp, 'gray_core')
+        self.grade_sinusoidal(gray_signal_exp, 'gray_core')
+        self.grade_thickness(gray_signal_exp, 'gray_core')
 
-        # self.grade_sinusoidal(aec_signal_exp, 'aec_core')
-        # self.grade_thickness(aec_signal_exp, 'aec_core')
+        self.grade_sinusoidal(aec_signal_exp, 'aec_core')
+        self.grade_thickness(aec_signal_exp, 'aec_core')
 
     def grade_minutiae_points(self, thresh=2) -> None:
         if 0 > thresh or thresh > 3:
@@ -546,10 +548,12 @@ class Fingerprint:
         x, y, w, h = cv2.boundingRect(contours[0])
         return Image(input_image.image[y:y+h, x:x+w]), x, y
 
-    def get_center_cords(self, draw=True) -> Union[int, int]:
+    def get_center_cords(self, name: str, draw=True) -> Union[int, int]:
         # Find countours and therfore draw the center
         contour, _ = cv2.findContours(
             self.mask_filled.image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        clahe_grayscale_center = Image(self.clahe_grayscale_color.image)
         if draw:
             blank = np.zeros(self.mask_filled.image.shape[:2], dtype='uint8')
             cv2.drawContours(blank, contour, -1, (255, 0, 0), 1)
@@ -561,28 +565,26 @@ class Fingerprint:
                 cx = int(M['m10']/M['m00'])
                 cy = int(M['m01']/M['m00'])
                 if draw:
-                    clahe_grayscale_center = Image(
-                        self.clahe_grayscale_color.image)
                     cv2.drawContours(clahe_grayscale_center.image, [
                         i], -1, (255, 0, 0), 2)
                     cv2.circle(clahe_grayscale_center.image,
                                (cx, cy), 7, (0, 0, 255), -1)
                     cv2.putText(clahe_grayscale_center.image, "center", (cx - 45, cy - 20),
                                 cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-                    self.clahe_grayscale_center = clahe_grayscale_center
 
-        self.report.report_center_cords(cx, cy)
-
+        self.report.report_center_cords(cx, cy, name)
+        self.clahe_grayscale_center = clahe_grayscale_center
         return cx, cy
 
-    def get_pependicular(self, cx: int, cy: int, angle_base=1):
+    def get_pependicular(self, cx: int, cy: int, name: str, angle_base=1):
         # TODO: Optimalization (read in 4 directions) - rotate just till 90
         def rotate_image(image: Image, angle: int, center_col: int, center_row: int) -> Tuple[Image, int, int]:
             image = image.image
             row, col = image.shape
-            squared_size: int = np.int(np.sqrt(row ** 2 + col ** 2))
-            diff_col: int = squared_size - col
-            diff_row: int = squared_size - row
+            squared_size: int = np.int(
+                np.sqrt((center_row * 2) ** 2 + (center_col * 2) ** 2))
+            diff_col: int = squared_size - center_col
+            diff_row: int = squared_size - center_row
 
             center_col += diff_col // 2
             center_row += diff_row // 2
@@ -693,7 +695,7 @@ class Fingerprint:
 
         extracted_aec_line = self.remove_black_array(
             extracted_aec_line)
-        self.report.report_pependicular(angle, angle_base, ridge_count)
+        self.report.report_pependicular(angle, angle_base, ridge_count, name)
 
         return extracted_grayscale_line, extracted_aec_line
 
@@ -722,11 +724,11 @@ class Fingerprint:
         Image.save_fig(self.figure_dict, path, f"{self.name}", ext)
 
     def show(self) -> None:
-        # Image.show(self.raw.image, "Raw", scale=0.5)
-        Image.show(self.grayscale.image, "Grayscale", scale=0.5)
-        # Image.show(self.filtered.image, "Filtered", scale=0.5)
-        # Image.show(self.binary.image, "Binary", scale=0.5)
+        # Image.show("Raw", self.raw.image, scale=0.5)
+        Image.show("Grayscale", self.grayscale.image, scale=0.5)
+        # Image.show("Filtered", self.filtered.image, scale=0.5)
+        # Image.show("Binary", self.binary.image, scale=0.5)
 
-        Image.show(self.mask, name="Mask", scale=0.5)
-        Image.show(self.aec, "AEC", scale=0.5)
-        Image.show(self.bin_image, "Bin image", scale=0.5)
+        Image.show(name="Mask", image=self.mask, scale=0.5)
+        Image.show("AEC", self.aec, scale=0.5)
+        Image.show("Bin image", self.bin_image, scale=0.5)

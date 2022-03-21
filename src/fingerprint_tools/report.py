@@ -94,13 +94,17 @@ class Report:
             "thickness_difference": ridge_thickness
         }
 
-    def report_center_cords(self, cx: int, cy: int):
-        self.report['papillary_crosscut'] = {
+    def report_center_cords(self, cx: int, cy: int, name: str):
+        if not 'papillary_crosscut' in self.report:
+            self.report['papillary_crosscut'] = {}
+        self.report['papillary_crosscut'][name] = {
             "mask_center": [cx, cy]
         }
 
-    def report_pependicular(self, angle: int, angle_base: int, ridge_count: int):
-        self.report['papillary_crosscut'] = {
+    def report_pependicular(self, angle: int, angle_base: int, ridge_count: int, name: str):
+        if not 'papillary_crosscut' in self.report:
+            self.report['papillary_crosscut'] = {}
+        self.report['papillary_crosscut'][name] = {
             "angle": angle * angle_base,
             "ridges_binary_count": ridge_count
         }

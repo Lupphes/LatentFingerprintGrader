@@ -106,7 +106,7 @@ class Image:
         cv2.imwrite(fname, self.image)
 
     @staticmethod
-    def show(image: 'Image', name="Image", scale=1.0) -> None:
+    def show(name="Image", image: 'Image' = None, scale=1.0) -> None:
         if scale != 1.0:
             width = int(image.shape[1] * scale)
             height = int(image.shape[0] * scale)
