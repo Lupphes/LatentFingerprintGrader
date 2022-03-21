@@ -16,9 +16,9 @@ from typing import Dict, Union, Tuple
 
 
 class Fingerprint:
-    def __init__(self, path, dpi):
+    def __init__(self, path, ppi):
         self.name: str = Path(path).name
-        self.dpi: int = dpi
+        self.ppi: int = ppi
         self.block_size: int = 16
 
         self.raw: Image = Image(image=self.read_raw_image(path))
@@ -67,7 +67,7 @@ class Fingerprint:
 
         logging.info(f'Curently processing: "{self.name}"')
         extractor_class.feature_extraction_single_latent(
-            img_file=path_image, output_dir=str(os.path.abspath(path_destination)), show_processes=False,
+            img_file=path_image, output_dir=str(os.path.abspath(path_destination)), ppi=self.ppi, show_processes=False,
             minu_file=None, show_minutiae=True
         )
 
@@ -617,7 +617,7 @@ class Fingerprint:
                                np.where(np.diff(ridges_separated) != 1)[0]+1)
 
         # Transform the pixels into readable format
-        base = 2.54 / self.dpi
+        base = 2.54 / self.ppi
         ridge_thickness = []
         for item in ridges_list:
             Th = base * len(item)

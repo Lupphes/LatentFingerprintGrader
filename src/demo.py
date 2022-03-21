@@ -40,7 +40,7 @@ def argument_parse() -> argparse.ArgumentParser:
         '-r', '--regenerate', help='Flag to regenerate already computed fingerprints (their pickle files) despite their existence.', action='store_true'
     )
     parser.add_argument(
-        '-p', '--dpi', type=int, help='DPI (Dots per inch) under which the scanner scanned the fingerprints. By default 500.', default=500
+        '-p', '--ppi', type=int, help='PPI (Pixels per inch) under which the scanner scanned the fingerprints. By default 500.', default=500
     )
 
     return parser.parse_args()
@@ -133,7 +133,7 @@ def main(args) -> None:
 
                 # Create a fingerprint object
                 fingerprint_image: fp.fingerprint.Fingerprint = fp.fingerprint.Fingerprint(
-                    path=path_image_src, dpi=args.dpi)
+                    path=path_image_src, ppi=args.ppi)
 
                 # Restore or generate pickle file for faster calculation
                 if args.regenerate or not os.path.exists(path_pickle):
