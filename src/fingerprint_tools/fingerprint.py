@@ -1,5 +1,3 @@
-from asyncio.log import logger
-from cmath import sin
 import os
 import cv2
 import logging
@@ -8,7 +6,6 @@ from pathlib import Path
 from matplotlib import pyplot as plt
 from scipy.integrate import simpson
 from scipy.signal import butter, filtfilt, argrelextrema
-
 
 from .contrast_types import ContrastTypes
 from .exception import FileError, ArrgumentError, UndefinedVariableError
@@ -475,7 +472,7 @@ class Fingerprint:
         signal_lenght = len(line_signal)
 
         if ridge_count == 0:
-            logger.warn(
+            logging.warn(
                 f"No ridges found. Please check image {self.name} if contains valid fingerprint"
             )
             return
