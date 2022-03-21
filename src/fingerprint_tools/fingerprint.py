@@ -120,21 +120,21 @@ class Fingerprint:
         gray_signal, aec_signal = self.get_pependicular(
             cent_x, cent_y, name='mask_center')
 
-        # self.grade_sinusoidal(gray_signal, 'gray')
-        # self.grade_thickness(gray_signal, 'gray')
+        self.grade_sinusoidal(gray_signal, 'gray')
+        self.grade_thickness(gray_signal, 'gray')
 
         self.grade_sinusoidal(aec_signal, 'aec')
         self.grade_thickness(aec_signal, 'aec')
 
         # With estimated core
-        # gray_signal_exp, aec_signal_exp = self.get_pependicular(
-        #     exp_x, exp_y, name='estimated_core')
+        gray_signal_exp, aec_signal_exp = self.get_pependicular(
+            exp_x, exp_y, name='estimated_core')
 
-        # self.grade_sinusoidal(gray_signal_exp, 'gray_core')
-        # self.grade_thickness(gray_signal_exp, 'gray_core')
+        self.grade_sinusoidal(gray_signal_exp, 'gray_core')
+        self.grade_thickness(gray_signal_exp, 'gray_core')
 
-        # self.grade_sinusoidal(aec_signal_exp, 'aec_core')
-        # self.grade_thickness(aec_signal_exp, 'aec_core')
+        self.grade_sinusoidal(aec_signal_exp, 'aec_core')
+        self.grade_thickness(aec_signal_exp, 'aec_core')
 
     def grade_minutiae_points(self, thresh=2) -> None:
         if 0 > thresh or thresh > 3:
@@ -489,7 +489,14 @@ class Fingerprint:
         sin_array = []
         for _ in range(ridge_count):
             sin_array = np.append(sin_array, sin_one)
-        sin_last = sin_one[:rest]
+
+        # Rest compensation
+        sin_rest = []
+        while rest > len(sin_rest):
+            sin_rest = np.append(sin_rest, sin_one)
+
+        sin_last = sin_rest[:rest]
+
         sin_array = np.append(sin_array, sin_last)
 
         # Using the Difference of squares to find the best period aligement
