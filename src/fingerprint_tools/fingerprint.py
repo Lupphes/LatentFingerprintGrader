@@ -1,12 +1,13 @@
+from asyncio.log import logger
+from cmath import sin
 import os
-from unicodedata import name
 import cv2
 import logging
 import numpy as np
 from pathlib import Path
-from matplotlib import image, pyplot as plt
+from matplotlib import pyplot as plt
 from scipy.integrate import simpson
-from scipy.signal import butter, filtfilt
+from scipy.signal import butter, filtfilt, argrelextrema
 
 
 from .contrast_types import ContrastTypes
@@ -119,21 +120,21 @@ class Fingerprint:
         gray_signal, aec_signal = self.get_pependicular(
             cent_x, cent_y, name='mask_center')
 
-        self.grade_sinusoidal(gray_signal, 'gray')
-        self.grade_thickness(gray_signal, 'gray')
+        # self.grade_sinusoidal(gray_signal, 'gray')
+        # self.grade_thickness(gray_signal, 'gray')
 
         self.grade_sinusoidal(aec_signal, 'aec')
         self.grade_thickness(aec_signal, 'aec')
 
         # With estimated core
-        gray_signal_exp, aec_signal_exp = self.get_pependicular(
-            exp_x, exp_y, name='estimated_core')
+        # gray_signal_exp, aec_signal_exp = self.get_pependicular(
+        #     exp_x, exp_y, name='estimated_core')
 
-        self.grade_sinusoidal(gray_signal_exp, 'gray_core')
-        self.grade_thickness(gray_signal_exp, 'gray_core')
+        # self.grade_sinusoidal(gray_signal_exp, 'gray_core')
+        # self.grade_thickness(gray_signal_exp, 'gray_core')
 
-        self.grade_sinusoidal(aec_signal_exp, 'aec_core')
-        self.grade_thickness(aec_signal_exp, 'aec_core')
+        # self.grade_sinusoidal(aec_signal_exp, 'aec_core')
+        # self.grade_thickness(aec_signal_exp, 'aec_core')
 
     def grade_minutiae_points(self, thresh=2) -> None:
         if 0 > thresh or thresh > 3:
@@ -423,9 +424,7 @@ class Fingerprint:
 
         return expected_core_x_off, expected_core_y_off
 
-    def grade_sinusoidal(self, line_signal: np.ndarray, name: str, draw=True) -> None:
-        # TODO: Only one ridge
-
+    def grade_sinusoidal(self, line_signal: np.ndarray, name: str, draw=True, really=False) -> None:
         # Source: https://github.com/guillaume-chevalier/filtering-stft-and-laplace-transform
         def butter_lowpass(cutoff, nyq_freq, order=4):
             normal_cutoff = float(cutoff) / nyq_freq
@@ -437,62 +436,144 @@ class Fingerprint:
             y = filtfilt(b, a, data)
             return y
 
-        # Normalize signal
+        def square_diff_match(line_signal, sin_array, sin_one):
+            # Using the Difference of squares to find the best period aligement
+            best_diff = None
+            best_sin = None
+            stack_array = []
+            period = sin_one
+            sin_array_shift = np.append(sin_array, period)
+            for _ in range(len(period)):
+                stack_array = sin_array_shift[:-len(period)]
+                diff_sqr = np.sum((stack_array - line_signal) ** 2)
+
+                if best_diff == None:
+                    best_diff = diff_sqr
+                    best_sin = stack_array
+                if diff_sqr < best_diff:
+                    best_diff = diff_sqr
+                    best_sin = stack_array
+
+                last, sin_array_shift = sin_array_shift[-1], sin_array_shift[:-1]
+                sin_array_shift = np.append(last, sin_array_shift)
+            return best_sin
+
+        # Normalize signal to <0;1>
         line_signal = line_signal.astype('float64')
         line_signal /= np.max(np.abs(line_signal), axis=0)
 
         low_pass = butter_lowpass_filter(line_signal, 5, 50/2)
-        ridge_threshold = 0.6  # Threshold which
 
-        # Count the number of computer ridges which uphold the threshold
-        ridge = 0
-        on_ridge = False
-        for item in low_pass:
-            if not on_ridge and item > ridge_threshold:
-                ridge += 1
-                on_ridge = True
-            if on_ridge and item < ridge_threshold:
-                on_ridge = False
+        local_min = argrelextrema(low_pass, np.less)[0]
+        local_max = argrelextrema(low_pass, np.greater)[0]
+        points_y = np.full(len(local_max), 1.9, dtype=np.float16)
 
-        # Using the Difference of squares to find the best period aligement
-        best_align = None
-        index_best_a = 0
-        period = np.arange(-np.pi, np.pi, 0.001)
-        for i in range(len(period)):
-            x = np.linspace(period[i], ridge * np.pi, len(line_signal))
-            sin = np.abs(np.sin(x))
+        # Normalize signal to <0;2>
+        line_signal *= 2
 
-            diff_sqr = np.sum((sin - line_signal) ** 2)
-            if i == 0:
-                best_align = diff_sqr
-            if diff_sqr < best_align:
-                best_align = diff_sqr
-                index_best_a = period[i]
+        ridge_count = len(local_max)
+        signal_lenght = len(line_signal)
+
+        if ridge_count == 0:
+            logger.warn(
+                f"No ridges found. Please check image {self.name} if contains valid fingerprint"
+            )
+            return
+
+        ridge_per_part = signal_lenght // ridge_count
+        rest = signal_lenght % ridge_count
 
         # Calculate the aligned sinus
-        x = np.linspace(index_best_a, ridge * np.pi, len(line_signal))
-        sin = np.abs(np.sin(x))
+        x_one = np.linspace((-np.pi)/2, 3 * np.pi / 2, ridge_per_part)
+        sin_one = np.sin(x_one) + 1  # + 1 normalization
+        sin_array = []
+        for _ in range(ridge_count):
+            sin_array = np.append(sin_array, sin_one)
+        sin_last = sin_one[:rest]
+        sin_array = np.append(sin_array, sin_last)
+
+        # Using the Difference of squares to find the best period aligement
+        best_sin = square_diff_match(line_signal, sin_array, sin_one)
 
         if draw:
-            fig_sinus: plt.Figure = plt.figure(figsize=(40, 10), dpi=100)
-            plt.plot(line_signal, label="Ridges", figure=fig_sinus)
-            plt.plot(sin, label="Sinus", figure=fig_sinus)
-            plt.xlabel("Pixels (X)", figure=fig_sinus)
-            plt.ylabel("Grayscale values (Y)", figure=fig_sinus)
+            fig_sinus_all: plt.Figure = plt.figure(figsize=(40, 10), dpi=100)
+            plt.plot(line_signal, label="Ridges all", figure=fig_sinus_all)
+            plt.plot(best_sin, label="Sinus all", figure=fig_sinus_all)
+            plt.plot(local_max, points_y, 'o', color="green")
+            for item in local_min:
+                plt.axvline(x=item, color='red', linestyle='--',
+                            figure=fig_sinus_all)
+            plt.xlabel("Pixels (X)", figure=fig_sinus_all)
+            plt.ylabel("Grayscale values (Y)", figure=fig_sinus_all)
             plt.legend()
             plt.close()
             if not name in self.figure_dict:
                 self.figure_dict[name] = {}
-            self.figure_dict[name]['sin'] = fig_sinus
+            self.figure_dict[name]['sin_all'] = fig_sinus_all
+
+            fig_sin_overview: plt.Figure = plt.figure(
+                figsize=(40, 10), dpi=100)
+            plt.plot(line_signal, label="Ridges", figure=fig_sin_overview)
+            plt.plot(local_max, points_y, 'o', color="green")
+            for item in local_min:
+                plt.axvline(x=item, color='red', linestyle='--',
+                            figure=fig_sin_overview)
+            plt.xlabel("Pixels (X)", figure=fig_sin_overview)
+            plt.ylabel("Grayscale values (Y)", figure=fig_sin_overview)
+            plt.legend()
+            plt.close()
+            self.figure_dict[name]['sin_overview'] = fig_sin_overview
 
         # Calculate the integral under the discrete signal
         A_FP = simpson(line_signal)
-        A_SIN = simpson(sin)
+        A_SIN = simpson(best_sin)
 
         D_D = (A_FP/A_SIN - 1) * 100
 
+        # Calculate D_D for each ridge
+        ridges = np.split(line_signal, local_min)[1:-1]
+        sin_all_count = []
+        ridges_all_count = []
+        D_D_ridge = []
+        for i in range(len(ridges)):
+            x_one = np.linspace((-np.pi)/2, 3 * np.pi / 2, len(ridges[i]))
+            sin_one = np.sin(x_one) + 1  # + 1 normalization
+            best_sin = square_diff_match(ridges[i], sin_one, sin_one)
+
+            A_FP_ridge = simpson(ridges[i])
+            A_SIN_ridge = simpson(best_sin)
+
+            D_D_ridge.append((A_FP_ridge/A_SIN_ridge - 1) * 100)
+
+            sin_all_count = np.append(sin_all_count, best_sin)
+            ridges_all_count = np.append(ridges_all_count, ridges[i])
+
+            if draw and really:
+                fig_sin_one: plt.Figure = plt.figure(
+                    figsize=(20, 10), dpi=100)
+                plt.plot(ridges[i], label="One ridge", figure=fig_sin_one)
+                plt.plot(best_sin, label="One sinus", figure=fig_sin_one)
+                plt.xlabel("Pixels (X)", figure=fig_sin_one)
+                plt.ylabel("Grayscale values (Y)", figure=fig_sin_one)
+                plt.legend()
+                fig_sin_one.savefig(f"{self.name}_one_{i}.png")
+                plt.close()
+
+        if draw:
+            fig_sin_optimalised: plt.Figure = plt.figure(
+                figsize=(40, 10), dpi=100)
+            plt.plot(ridges_all_count, label="Ridges optimalised",
+                     figure=fig_sin_optimalised)
+            plt.plot(sin_all_count, label="Sinus optimalised",
+                     figure=fig_sin_optimalised)
+            plt.xlabel("Pixels (X)", figure=fig_sin_optimalised)
+            plt.ylabel("Grayscale values (Y)", figure=fig_sin_optimalised)
+            plt.legend()
+            plt.close()
+            self.figure_dict[name]['sin_optimalised'] = fig_sin_optimalised
+
         self.report.report_sinusoidal(
-            ridge, index_best_a, A_FP, A_SIN, D_D, name)
+            ridge_count, A_FP, A_SIN, D_D, D_D_ridge, name)
 
     def grade_thickness(self, line_signal: np.ndarray, name: str, draw=True) -> None:
         average_thickness = 0.033  # mm
@@ -579,7 +660,7 @@ class Fingerprint:
         return cx, cy
 
     def get_pependicular(self, cx: int, cy: int, name: str, angle_base=1):
-        # TODO: Optimalization (read in 4 directions) - rotate just till 90
+        # TODO: Optimalisation (read in 4 directions) - rotate just till 90
         def rotate_image(image: Image, angle: int, center_col: int, center_row: int) -> Tuple[Image, int, int]:
             image = image.image
             row, col = image.shape

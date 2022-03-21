@@ -69,7 +69,7 @@ class Report:
         self.report['papilary_ridges'] = {
             **self.report['papilary_ridges'], **lines_append}
 
-    def report_sinusoidal(self, ridge: int, index_best_a: np.float64, A_FP: np.float64, A_SIN: np.float64, D_D: np.float64, name: str) -> None:
+    def report_sinusoidal(self, ridge: int, A_FP: np.float64, A_SIN: np.float64, D_D: np.float64, D_D_ridge: np.ndarray, name: str) -> None:
         if not 'papillary_crosscut' in self.report:
             self.report['papillary_crosscut'] = {}
         if not 'sinusoidal_shape' in self.report['papillary_crosscut']:
@@ -77,10 +77,10 @@ class Report:
 
         self.report['papillary_crosscut']['sinusoidal_shape'][name] = {
             "ridges_low_pass_count": ridge,
-            "sinus_offset": index_best_a,
             "A_FP": A_FP,
             "A_SIN": A_SIN,
-            "D_D": D_D
+            "D_D": D_D,
+            "D_D_ridges": D_D_ridge
         }
 
     def report_thickness(self, ridge_thickness: np.ndarray, name: str) -> None:
