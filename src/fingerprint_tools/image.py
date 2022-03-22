@@ -123,3 +123,10 @@ class Image:
                 fname = os.path.join(
                     path, f"{name}_{algorithm}_{variant}{ext}")
                 dictionary[variant][algorithm].savefig(fname)
+
+    @staticmethod
+    def save_img(dictionary: Dict, path: Path, name: str, ext: str) -> None:
+        for variant in dictionary:
+            for algorithm in dictionary[variant]:
+                dictionary[variant][algorithm].save(
+                    path, f"{name}_{variant}_{algorithm}", ext)

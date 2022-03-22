@@ -109,6 +109,13 @@ class Report:
             "ridges_binary_count": ridge_count
         }
 
+    def report_error(self, name: str, error_msg: str):
+        if not 'error' in self.report:
+            self.report['error'] = {}
+        self.report['error'][name] = {
+            "description": error_msg
+        }
+
     def add(self, name: str, input: Dict) -> None:
         self.report[name] = input
 

@@ -55,9 +55,15 @@ class Fingerprint:
 
         if block_size == None:
             block_size: int = self.block_size
+
         image = cv2.imread(path)
+
         if image is None:
             raise FileError()
+        if self.ppi != 500:
+            image = cv2.resize(image, (0, 0), fx=500.0 /
+                               self.ppi, fy=500.0 / self.ppi)
+
         return image2blocks(image, block_size)
 
     def msu_afis(self, path_image: str, path_destination: str, extractor_class=None):
@@ -83,7 +89,7 @@ class Fingerprint:
 
         self.generate_helpers()
 
-        logging.info('Feature extraction finished!')
+        logging.info(f'Feature extraction of {self.name} finished!')
         return extractor_class
 
     def generate_helpers(self) -> None:
@@ -106,8 +112,11 @@ class Fingerprint:
         self.bin_image_masked_filled.apply_mask(mask=self.mask_filled)
 
         self.figure_dict = {}
+        self.image_dict = {}
 
     def grade_fingerprint(self) -> None:
+        logging.info(f'Grading {self.name}!')
+
         self.grade_minutiae_points()
         self.grade_contrast()
         exp_x, exp_y = self.grade_lines()
@@ -117,23 +126,41 @@ class Fingerprint:
         gray_signal, aec_signal = self.get_pependicular(
             cent_x, cent_y, name='mask_center')
 
-        self.grade_sinusoidal(gray_signal, 'gray')
-        self.grade_thickness(gray_signal, 'gray')
+        if len(gray_signal) == 0:
+            self.report.report_error(
+                'gray', 'The returned empty array. No ridges found.')
+        else:
+            self.grade_sinusoidal(gray_signal, 'gray')
+            self.grade_thickness(gray_signal, 'gray')
 
-        self.grade_sinusoidal(aec_signal, 'aec')
-        self.grade_thickness(aec_signal, 'aec')
+        if len(aec_signal) == 0:
+            self.report.report_error(
+                'aec', 'The returned empty array. No ridges found.')
+        else:
+            self.grade_sinusoidal(aec_signal, 'aec')
+            self.grade_thickness(aec_signal, 'aec')
 
         # With estimated core
         gray_signal_exp, aec_signal_exp = self.get_pependicular(
             exp_x, exp_y, name='estimated_core')
 
-        self.grade_sinusoidal(gray_signal_exp, 'gray_core')
-        self.grade_thickness(gray_signal_exp, 'gray_core')
+        if len(gray_signal_exp) == 0:
+            self.report.report_error(
+                'gray_core', 'The returned empty array. No ridges found.')
+        else:
+            self.grade_sinusoidal(gray_signal_exp, 'gray_core')
+            self.grade_thickness(gray_signal_exp, 'gray_core')
 
-        self.grade_sinusoidal(aec_signal_exp, 'aec_core')
-        self.grade_thickness(aec_signal_exp, 'aec_core')
+        if len(aec_signal_exp) == 0:
+            self.report.report_error(
+                'aec_core', 'The returned empty array. No ridges found.')
+        else:
+            self.grade_sinusoidal(aec_signal_exp, 'aec_core')
+            self.grade_thickness(aec_signal_exp, 'aec_core')
 
-    def grade_minutiae_points(self, thresh=2) -> None:
+        logging.info(f'Grading {self.name} finished!')
+
+    def grade_minutiae_points(self, name='default', thresh=2) -> None:
         if 0 > thresh or thresh > 3:
             raise ArrgumentError()
 
@@ -146,7 +173,7 @@ class Fingerprint:
 
         self.report.report_minuatue(number_of_cmp, minuatue_points)
 
-    def grade_contrast(self) -> None:
+    def grade_contrast(self, name='default') -> None:
         # TODO: Weber?
         # https://stackoverflow.com/questions/68145161/using-python-opencv-to-calculate-vein-leaf-density
 
@@ -206,12 +233,17 @@ class Fingerprint:
                 else:
                     black_count = 0
             processed_extracted.append(array[i])
+        if index != -1:
+            processed_extracted = processed_extracted[:-index]
+            index = -1
+            black_count = 0
 
         array = np.array(processed_extracted)
 
         return array
 
-    def grade_lines(self, draw=True) -> None:
+    def grade_lines(self, name='lines', draw=True) -> None:
+        # TODO: Does density and count match have relevance
         def create_candidates(dicto, name, value, cord, sample):
             if (len(dicto[name]['candidates']) < sample):
                 dicto[name]['candidates'].append(value)
@@ -406,18 +438,23 @@ class Fingerprint:
         }
 
         self.report.report_lines(lines_dict, lines_append)
-        # Images to generate later
-        self.vertical_lines = Image(mask_ridges_color_vertical_count)
-        self.horizontal_lines = Image(mask_ridges_color_horizontal_count)
-        self.lines = Image(mask_ridges_color_count)
-        self.mask_ridges_color_uncut = Image(mask_ridges_color_uncut)
 
-        self.mask_ridges_color_vertical_density = Image(
+        # Images to generate later
+        if not name in self.image_dict:
+            self.image_dict[name] = {}
+        self.image_dict[name]["vertical"] = Image(
+            mask_ridges_color_vertical_count)
+        self.image_dict[name]["horizontal"] = Image(
+            mask_ridges_color_horizontal_count)
+        self.image_dict[name]["full_vh"] = Image(mask_ridges_color_count)
+        self.image_dict[name]["uncut"] = Image(mask_ridges_color_uncut)
+
+        self.image_dict[name]["density_vertical"] = Image(
             mask_ridges_color_vertical_density)
-        self.mask_ridges_color_horizontal_density = Image(
+        self.image_dict[name]["density_horizontal"] = Image(
             mask_ridges_color_horizontal_density)
-        self.mask_ridges_color_density = Image(
-            mask_ridges_color_vertical_density)
+        self.image_dict[name]["density_full_vh"] = Image(
+            mask_ridges_color_density)
 
         return expected_core_x_off, expected_core_y_off
 
@@ -580,6 +617,7 @@ class Fingerprint:
             ridge_count, A_FP, A_SIN, D_D, D_D_ridge, name)
 
     def grade_thickness(self, line_signal: np.ndarray, name: str, draw=True) -> None:
+        # FIXME: Check thickness
         average_thickness = 0.033  # mm
 
         # 18% defined by literature
@@ -618,6 +656,7 @@ class Fingerprint:
 
         # Transform the pixels into readable format
         base = 2.54 / self.ppi
+        # FIXME: Check PPI
         ridge_thickness = []
         for item in ridges_list:
             Th = base * len(item)
@@ -660,7 +699,12 @@ class Fingerprint:
                                 cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
         self.report.report_center_cords(cx, cy, name)
-        self.clahe_grayscale_center = clahe_grayscale_center
+
+        # TODO: Check if center is in or out from fingerprint
+
+        if not name in self.image_dict:
+            self.image_dict[name] = {}
+        self.image_dict[name]["center_cords"] = clahe_grayscale_center
         return cx, cy
 
     def get_pependicular(self, cx: int, cy: int, name: str, angle_base=1):
@@ -696,6 +740,12 @@ class Fingerprint:
             cx_rot -= x_bb
             cy_rot -= y_bb
 
+            # If coordinate is out from image,
+            # set in on the most bottom position
+            row, _ = rotated_image.image.shape
+            if row < cy_rot:
+                cy_rot = row
+
             if draw:
                 rotated_image.image = cv2.cvtColor(
                     rotated_image.image, cv2.COLOR_GRAY2RGB)
@@ -711,12 +761,42 @@ class Fingerprint:
                 return rotated_image.image, cx_rot, cy_rot
 
         # Prepare image variables for calculation
-        mask_ridges = Image(self.bin_image_masked_filled.image)
+        mask_ridges = Image(self.bin_image_masked.image)
 
         candidate_results = []
+        count_results = []
         for angle in range(0, 360, angle_base):
             rotated_image, cx_rot, cy_rot = make_image(
                 mask_ridges, 1, angle, cx, cy, draw=False, image=False)
+
+            # If coordinate is not on the picture
+            # skip it
+            if cx_rot < 0 or cy_rot < 0:
+                candidate_results.append(0)
+                count_results.append(None)
+                continue
+            row, col = rotated_image.shape
+            if col < cx_rot:  # or row < cx_rot
+                candidate_results.append(0)
+                count_results.append(None)
+                continue
+
+            # Count number of lines
+            extracted_line, cx_rot, cy_rot = make_image(
+                mask_ridges, angle, angle_base, cx, cy, draw=False, image=False)
+            extracted_line = extracted_line[:cy_rot, cx_rot]
+            ridge_count = 0
+            is_on_ridge = False
+            for x in range(len(extracted_line)):
+                if x + 1 < len(extracted_line) and extracted_line[x] == 255 and extracted_line[x + 1] == 0:
+                    is_on_ridge = True
+                if is_on_ridge and x + 1 < len(extracted_line) and extracted_line[x] == 0 and extracted_line[x + 1] == 255:
+                    ridge_count += 1
+                    is_on_ridge = False
+            if ridge_count == 0:
+                candidate_results.append(0)
+                count_results.append(None)
+                continue
 
             # Blur the binary image and apply Sobel gradient in Y direction
             # throw white and black and compute mean, the greater the value
@@ -732,28 +812,25 @@ class Fingerprint:
             edge_detection = [
                 i for i in edge_detection[:cy_rot, cx_rot] if i not in [0, 255]]
 
-            # Calculate the mean
-            candidate_results.append(np.mean(edge_detection))
+            # If nothing was found
+            if len(edge_detection) == 0:
+                candidate_results.append(0)
+                count_results.append(None)
+            else:
+                # Calculate the mean
+                candidate_results.append(np.mean(edge_detection))
+                count_results.append(ridge_count)
 
         max_sobel_value = max(candidate_results)
         angle = candidate_results.index(max_sobel_value)
+        ridge_count = count_results[angle]
 
         # Generate image which shows the progress
-        self.pependicular = Image(make_image(
-            mask_ridges, angle, angle_base, cx, cy, draw=True))
-
-        # Count number of lines
-        extracted_line, cx_rot, cy_rot = make_image(
-            mask_ridges, angle, angle_base, cx, cy, draw=False, image=False)
-        extracted_line = extracted_line[:cy_rot, cx_rot]
-        ridge_count = 0
-        is_on_ridge = False
-        for x in range(len(extracted_line)):
-            if x + 1 < len(extracted_line) and extracted_line[x] == 255 and extracted_line[x + 1] == 0:
-                is_on_ridge = True
-            if is_on_ridge and x + 1 < len(extracted_line) and extracted_line[x] == 0 and extracted_line[x + 1] == 255:
-                ridge_count += 1
-                is_on_ridge = False
+        if not name in self.image_dict:
+            self.image_dict[name] = {}
+        self.image_dict[name]["pependicular"] = Image(make_image(
+            mask_ridges, angle, angle_base, cx, cy, draw=True)
+        )
 
         # Apply the mask and rotation on the image
         self.clahe_grayscale_rotated = Image(make_image(
@@ -782,33 +859,14 @@ class Fingerprint:
 
         extracted_aec_line = self.remove_black_array(
             extracted_aec_line)
+
         self.report.report_pependicular(angle, angle_base, ridge_count, name)
 
         return extracted_grayscale_line, extracted_aec_line
 
     def generate_images(self, path: Path, ext=".jpeg") -> None:
-        self.vertical_lines.save(path, f"{self.name}_lines_vertical", ext)
-        self.horizontal_lines.save(path, f"{self.name}_lines_horizontal", ext)
-        self.lines.save(path, f"{self.name}_lines", ext)
-        self.mask_ridges_color_uncut.save(
-            path, f"{self.name}_lines_uncut", ext)
-
-        self.clahe_grayscale_center.save(path, f"{self.name}_center", ext)
-
-        self.pependicular.save(path, f"{self.name}_pependicular", ext)
-        self.clahe_grayscale_rotated.save(
-            path, f"{self.name}_clahe_grayscale_rotated", ext)
-        self.aec_masked_rotated.save(
-            path, f"{self.name}_aec_masked_rotated", ext)
-
-        self.mask_ridges_color_vertical_density.save(
-            path, f"{self.name}_mask_ridges_color_vertical_density", ext)
-        self.mask_ridges_color_horizontal_density.save(
-            path, f"{self.name}_mask_ridges_color_horizontal_density", ext)
-        self.mask_ridges_color_density.save(
-            path, f"{self.name}_mask_ridges_color_density", ext)
-
-        Image.save_fig(self.figure_dict, path, f"{self.name}", ext)
+        Image.save_img(self.image_dict, path, self.name, ext)
+        Image.save_fig(self.figure_dict, path, self.name, ext)
 
     def show(self) -> None:
         # Image.show("Raw", self.raw.image, scale=0.5)
