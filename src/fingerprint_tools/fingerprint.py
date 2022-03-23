@@ -701,14 +701,12 @@ class Fingerprint:
 
         self.report.report_center_cords(cx, cy, name)
 
-        # TODO: Check if center is in or out from fingerprint
-
         if not name in self.image_dict:
             self.image_dict[name] = {}
         self.image_dict[name]["center_cords"] = clahe_grayscale_center
         return cx, cy
 
-    def get_pependicular(self, cx: int, cy: int, name: str, angle_base=1):
+    def get_pependicular(self, cx: int, cy: int, name: str, angle_base=20):
         # TODO: Optimalisation (read in 4 directions) - rotate just till 90
         def rotate_image(image: Image, angle: int, center_col: int, center_row: int) -> Tuple[Image, int, int]:
             image = image.image
@@ -736,12 +734,12 @@ class Fingerprint:
                 image, matrix, image.shape[1::-1], flags=cv2.INTER_NEAREST)
             return Image(image), center_col, center_row
 
-        def make_image(mask_ridges, index, angle_base, center_col, cy, draw=False, image=True) -> Union[np.ndarray, Tuple[np.ndarray, int, int]]:
+        def make_image(mask_ridges, angle, center_col, cy, draw=False, image=True) -> Union[np.ndarray, Tuple[np.ndarray, int, int]]:
             # TODO: Remove angle_base, not needed
             rotated_image, cx_rot, cy_rot = rotate_image(
-                mask_ridges, index*angle_base, center_col, cy)
+                mask_ridges, angle, center_col, cy)
             image_mask, _, _ = rotate_image(
-                self.mask_filled, index*angle_base, center_col, cy)
+                self.mask_filled, angle, center_col, cy)
             rotated_image, x_bb, y_bb = self.cut_image(
                 image_mask, rotated_image)
 
@@ -775,7 +773,7 @@ class Fingerprint:
         count_results = []
         for angle in range(0, 360, angle_base):
             rotated_image, cx_rot, cy_rot = make_image(
-                mask_ridges, angle, angle_base, cx, cy, draw=False, image=False)
+                mask_ridges, angle, cx, cy, draw=False, image=False)
 
             # If coordinate is not on the picture
             # skip it
@@ -834,12 +832,12 @@ class Fingerprint:
         # Apply the mask and rotation on the image
         # and get correct coordinations
         self.clahe_grayscale_rotated, cx_rot, cy_rot = make_image(
-            self.grayscale_clahe_masked, angle, angle_base, cx, cy, draw=False, image=False)
+            self.grayscale_clahe_masked, angle, cx, cy, draw=False, image=False)
 
         self.clahe_grayscale_rotated = Image(self.clahe_grayscale_rotated)
 
         self.aec_masked_rotated = Image(make_image(
-            self.aec_masked, angle, angle_base, cx, cy, draw=False))
+            self.aec_masked, angle, cx, cy, draw=False))
 
         extracted_grayscale_line = self.clahe_grayscale_rotated.image[:cy_rot, cx_rot:cx_rot+1]
         extracted_aec_line = self.aec_masked_rotated.image[:cy_rot,
@@ -865,19 +863,19 @@ class Fingerprint:
         extracted_aec_line = self.remove_black_array(
             extracted_aec_line)
 
-        self.report.report_pependicular(angle, angle_base, ridge_count, name)
+        self.report.report_pependicular(angle, ridge_count, name)
 
         # Generate image which shows the progress
         if not name in self.image_dict:
             self.image_dict[name] = {}
         self.image_dict[name]["pependicular"] = Image(make_image(
-            mask_ridges, angle, angle_base, cx, cy, draw=True)
+            mask_ridges, angle, cx, cy, draw=True)
         )
         self.image_dict[name]["pependicular_clahe"] = Image(make_image(
-            self.grayscale_clahe_masked, angle, angle_base, cx, cy, draw=True)
+            self.grayscale_clahe_masked, angle, cx, cy, draw=True)
         )
         self.image_dict[name]["pependicular_aec"] = Image(make_image(
-            self.aec_masked, angle, angle_base, cx, cy, draw=True)
+            self.aec_masked, angle, cx, cy, draw=True)
         )
 
         return extracted_grayscale_line, extracted_aec_line

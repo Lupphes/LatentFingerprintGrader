@@ -101,11 +101,11 @@ class Report:
             "mask_center": [cx, cy]
         }
 
-    def report_pependicular(self, angle: int, angle_base: int, ridge_count: int, name: str):
+    def report_pependicular(self, angle: int, ridge_count: int, name: str):
         if not 'papillary_crosscut' in self.report:
             self.report['papillary_crosscut'] = {}
         self.report['papillary_crosscut'][name] = {
-            "angle": angle * angle_base,
+            "angle": angle,
             "ridges_binary_count": ridge_count
         }
 
