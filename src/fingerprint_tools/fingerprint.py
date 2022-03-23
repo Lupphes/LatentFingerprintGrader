@@ -497,7 +497,7 @@ class Fingerprint:
         line_signal = line_signal.astype('float64')
         line_signal /= np.max(np.abs(line_signal), axis=0)
 
-        if len(line_signal) < 15:
+        if len(line_signal) < 16:
             self.report.report_error('pependicular_low_pass',
                                      'The pependicular line is too short to analyze')
             return
