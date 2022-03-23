@@ -118,7 +118,7 @@ def main(args) -> None:
     path_input: Path = args.sdir
     path_output: Path = args.ddir
 
-    for dirpath, _, filenames in sorted(os.walk(path_input)):
+    for dirpath, _, filenames in os.walk(path_input):
         for file in filenames:
             structure: str = os.path.join(
                 path_output, os.path.relpath(dirpath, path_input))
