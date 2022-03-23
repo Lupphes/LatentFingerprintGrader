@@ -497,6 +497,10 @@ class Fingerprint:
         line_signal = line_signal.astype('float64')
         line_signal /= np.max(np.abs(line_signal), axis=0)
 
+        if len(line_signal) < 15:
+            self.report.report_error('pependicular_low_pass',
+                                     'The pependicular line is too short to analyze')
+            return
         low_pass = butter_lowpass_filter(line_signal, 5, 50/2)
 
         local_min = argrelextrema(low_pass, np.less)[0]
@@ -510,9 +514,8 @@ class Fingerprint:
         signal_lenght = len(line_signal)
 
         if ridge_count == 0:
-            logging.warn(
-                f"No ridges found. Please check image {self.name} if contains valid fingerprint"
-            )
+            self.report.report_error('pependicular_low_pass',
+                                     'The algorithm didn\'t found any ridges to analyze.')
             return
 
         ridge_per_part = signal_lenght // ridge_count
@@ -618,7 +621,7 @@ class Fingerprint:
             ridge_count, A_FP, A_SIN, D_D, D_D_ridge, name)
 
     def grade_thickness(self, line_signal: np.ndarray, name: str, draw=True) -> None:
-        # FIXME: Check thickness
+        # TODO: Check thickness DPI but should be alright
         average_thickness = 0.033  # mm
 
         # 18% defined by literature
@@ -657,7 +660,7 @@ class Fingerprint:
 
         # Transform the pixels into readable format
         base = 2.54 / self.ppi
-        # FIXME: Check PPI
+        # TODO: Evaluate if PPI is good
         ridge_thickness = []
         for item in ridges_list:
             Th = base * len(item)
@@ -706,7 +709,7 @@ class Fingerprint:
         self.image_dict[name]["center_cords"] = clahe_grayscale_center
         return cx, cy
 
-    def get_pependicular(self, cx: int, cy: int, name: str, angle_base=20):
+    def get_pependicular(self, cx: int, cy: int, name: str, angle_base=1):
         # TODO: Optimalisation (read in 4 directions) - rotate just till 90
         def rotate_image(image: Image, angle: int, center_col: int, center_row: int) -> Tuple[Image, int, int]:
             image = image.image
@@ -735,7 +738,6 @@ class Fingerprint:
             return Image(image), center_col, center_row
 
         def make_image(mask_ridges, angle, center_col, cy, draw=False, image=True) -> Union[np.ndarray, Tuple[np.ndarray, int, int]]:
-            # TODO: Remove angle_base, not needed
             rotated_image, cx_rot, cy_rot = rotate_image(
                 mask_ridges, angle, center_col, cy)
             image_mask, _, _ = rotate_image(
@@ -828,6 +830,7 @@ class Fingerprint:
         max_sobel_value = np.max(candidate_results)
         angle = candidate_results.index(max_sobel_value)
         ridge_count = count_results[angle]
+        angle *= angle_base
 
         # Apply the mask and rotation on the image
         # and get correct coordinations

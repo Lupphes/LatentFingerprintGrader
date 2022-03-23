@@ -15,6 +15,8 @@ __all__ = [
     "ArrgumentError"
 
     "UndefinedVariableError"
+
+    "FingerprintQualityError"
 ]
 
 
