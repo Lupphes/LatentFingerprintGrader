@@ -462,19 +462,20 @@ class Fingerprint:
         # Source: https://github.com/guillaume-chevalier/filtering-stft-and-laplace-transform
         def butter_lowpass(cutoff, nyq_freq, order=4):
             normal_cutoff = float(cutoff) / nyq_freq
-            b, a = butter(order, normal_cutoff, btype='lowpass')
+            b, a = butter(order, normal_cutoff, btype='lowpass',
+                          analog=False, fs=None)
             return b, a
 
-        def butter_lowpass_filter(data, cutoff_freq, nyq_freq, order=4):
+        def butter_lowpass_filter(x, cutoff_freq, nyq_freq, order=4):
             b, a = butter_lowpass(cutoff_freq, nyq_freq, order=order)
-            y = filtfilt(b, a, data)
+            y = filtfilt(b, a, x, axis=0)
             return y
 
-        def square_diff_match(line_signal, sin_array, sin_one):
+        def square_diff_match(line_signal, sin_array, sin_one) -> np.ndarray:
             # Using the Difference of squares to find the best period aligement
             best_diff = None
             best_sin = None
-            stack_array = []
+            stack_array = np.array([])
             period = sin_one
             sin_array_shift = np.append(sin_array, period)
             for _ in range(len(period)):
@@ -490,7 +491,7 @@ class Fingerprint:
 
                 last, sin_array_shift = sin_array_shift[-1], sin_array_shift[:-1]
                 sin_array_shift = np.append(last, sin_array_shift)
-            return best_sin
+            return np.array(best_sin)
 
         # Normalize signal to <0;1>
         line_signal = line_signal.astype('float64')
@@ -520,12 +521,12 @@ class Fingerprint:
         # Calculate the aligned sinus
         x_one = np.linspace((-np.pi)/2, 3 * np.pi / 2, ridge_per_part)
         sin_one = np.sin(x_one) + 1  # + 1 normalization
-        sin_array = []
+        sin_array = np.array([])
         for _ in range(ridge_count):
             sin_array = np.append(sin_array, sin_one)
 
         # Rest compensation
-        sin_rest = []
+        sin_rest = np.array([])
         while rest > len(sin_rest):
             sin_rest = np.append(sin_rest, sin_one)
 
@@ -566,8 +567,8 @@ class Fingerprint:
             self.figure_dict[name]['sin_overview'] = fig_sin_overview
 
         # Calculate the integral under the discrete signal
-        A_FP = simpson(line_signal)
-        A_SIN = simpson(best_sin)
+        A_FP = simpson(line_signal, axis=0)
+        A_SIN = simpson(best_sin, axis=0)
 
         D_D = (A_FP/A_SIN - 1) * 100
 
@@ -581,8 +582,8 @@ class Fingerprint:
             sin_one = np.sin(x_one) + 1  # + 1 normalization
             best_sin = square_diff_match(ridges[i], sin_one, sin_one)
 
-            A_FP_ridge = simpson(ridges[i])
-            A_SIN_ridge = simpson(best_sin)
+            A_FP_ridge = simpson(ridges[i], axis=0)
+            A_SIN_ridge = simpson(best_sin, axis=0)
 
             D_D_ridge.append((A_FP_ridge/A_SIN_ridge - 1) * 100)
 
@@ -712,24 +713,31 @@ class Fingerprint:
         def rotate_image(image: Image, angle: int, center_col: int, center_row: int) -> Tuple[Image, int, int]:
             image = image.image
             row, col = image.shape
-            squared_size: int = np.int(
-                np.sqrt((center_row * 2) ** 2 + (center_col * 2) ** 2))
-            diff_col: int = squared_size - center_col
-            diff_row: int = squared_size - center_row
+            diff_col = col - center_col
+            diff_row = row - center_row
 
-            center_col += diff_col // 2
-            center_row += diff_row // 2
+            dimensions = np.array([row, col, diff_row, diff_col])
+            dim_max = np.max(dimensions)
 
-            image = cv2.copyMakeBorder(image, round((diff_row) / 2), int((diff_row) / 2),
-                                       round((diff_col) / 2), int((diff_col) / 2), 0)
+            top_add = dim_max - center_row
+            right_add = dim_max - diff_col
+            bottom_add = dim_max - diff_row
+            left_add = dim_max - center_col
 
-            image_center = tuple((center_col, center_row))
+            center_col += left_add
+            center_row += top_add
+
+            image = cv2.copyMakeBorder(
+                image, top=top_add, bottom=bottom_add, right=right_add, left=left_add, borderType=0)
+
+            image_center = tuple((int(center_col), int(center_row)))
             matrix = cv2.getRotationMatrix2D(image_center, angle, 1.0)
             image = cv2.warpAffine(
                 image, matrix, image.shape[1::-1], flags=cv2.INTER_NEAREST)
             return Image(image), center_col, center_row
 
         def make_image(mask_ridges, index, angle_base, center_col, cy, draw=False, image=True) -> Union[np.ndarray, Tuple[np.ndarray, int, int]]:
+            # TODO: Remove angle_base, not needed
             rotated_image, cx_rot, cy_rot = rotate_image(
                 mask_ridges, index*angle_base, center_col, cy)
             image_mask, _, _ = rotate_image(
@@ -767,7 +775,7 @@ class Fingerprint:
         count_results = []
         for angle in range(0, 360, angle_base):
             rotated_image, cx_rot, cy_rot = make_image(
-                mask_ridges, 1, angle, cx, cy, draw=False, image=False)
+                mask_ridges, angle, angle_base, cx, cy, draw=False, image=False)
 
             # If coordinate is not on the picture
             # skip it
@@ -782,9 +790,7 @@ class Fingerprint:
                 continue
 
             # Count number of lines
-            extracted_line, cx_rot, cy_rot = make_image(
-                mask_ridges, angle, angle_base, cx, cy, draw=False, image=False)
-            extracted_line = extracted_line[:cy_rot, cx_rot]
+            extracted_line = rotated_image[:cy_rot, cx_rot:cx_rot+1]
             ridge_count = 0
             is_on_ridge = False
             for x in range(len(extracted_line)):
@@ -806,11 +812,11 @@ class Fingerprint:
                 rotated_image, (21, 7), cv2.BORDER_DEFAULT)
             edge_detection = cv2.Sobel(edge_detection, 0, dx=0, dy=1)
             edge_detection = np.uint8(np.absolute(edge_detection))
-            edge_detection = edge_detection[:cy_rot, :]
 
             # Throw black (0) and white (255) out
+            edge_detection = edge_detection[:cy_rot, cx_rot:cx_rot+1]
             edge_detection = [
-                i for i in edge_detection[:cy_rot, cx_rot] if i not in [0, 255]]
+                i for i in edge_detection if i not in [0, 255]]
 
             # If nothing was found
             if len(edge_detection) == 0:
@@ -821,27 +827,26 @@ class Fingerprint:
                 candidate_results.append(np.mean(edge_detection))
                 count_results.append(ridge_count)
 
-        max_sobel_value = max(candidate_results)
+        max_sobel_value = np.max(candidate_results)
         angle = candidate_results.index(max_sobel_value)
         ridge_count = count_results[angle]
 
-        # Generate image which shows the progress
-        if not name in self.image_dict:
-            self.image_dict[name] = {}
-        self.image_dict[name]["pependicular"] = Image(make_image(
-            mask_ridges, angle, angle_base, cx, cy, draw=True)
-        )
-
         # Apply the mask and rotation on the image
-        self.clahe_grayscale_rotated = Image(make_image(
-            self.grayscale_clahe_masked, angle, angle_base, cx, cy, draw=False))
+        # and get correct coordinations
+        self.clahe_grayscale_rotated, cx_rot, cy_rot = make_image(
+            self.grayscale_clahe_masked, angle, angle_base, cx, cy, draw=False, image=False)
+
+        self.clahe_grayscale_rotated = Image(self.clahe_grayscale_rotated)
 
         self.aec_masked_rotated = Image(make_image(
             self.aec_masked, angle, angle_base, cx, cy, draw=False))
 
-        extracted_grayscale_line = self.clahe_grayscale_rotated.image[:cy_rot, cx_rot]
-        extracted_aec_line = self.aec_masked_rotated.image[:cy_rot, cx_rot]
+        extracted_grayscale_line = self.clahe_grayscale_rotated.image[:cy_rot, cx_rot:cx_rot+1]
+        extracted_aec_line = self.aec_masked_rotated.image[:cy_rot,
+                                                           cx_rot:cx_rot+1]
 
+        extracted_grayscale_line = np.rot90(extracted_grayscale_line)[0]
+        extracted_aec_line = np.rot90(extracted_aec_line)[0]
         # Remove black pixels from array
         for i in range(len(extracted_grayscale_line)):
             if extracted_grayscale_line[i] != 0:
@@ -861,6 +866,19 @@ class Fingerprint:
             extracted_aec_line)
 
         self.report.report_pependicular(angle, angle_base, ridge_count, name)
+
+        # Generate image which shows the progress
+        if not name in self.image_dict:
+            self.image_dict[name] = {}
+        self.image_dict[name]["pependicular"] = Image(make_image(
+            mask_ridges, angle, angle_base, cx, cy, draw=True)
+        )
+        self.image_dict[name]["pependicular_clahe"] = Image(make_image(
+            self.grayscale_clahe_masked, angle, angle_base, cx, cy, draw=True)
+        )
+        self.image_dict[name]["pependicular_aec"] = Image(make_image(
+            self.aec_masked, angle, angle_base, cx, cy, draw=True)
+        )
 
         return extracted_grayscale_line, extracted_aec_line
 

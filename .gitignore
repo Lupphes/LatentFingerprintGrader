@@ -144,6 +144,8 @@ models/
 # !src/fingerprint_tools/msu_latentafis/models/.
 
 test/
+debug/
 
 notes.txt
 *.json
+requirements2.txt
