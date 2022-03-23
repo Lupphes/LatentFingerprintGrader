@@ -86,6 +86,10 @@ def set_envinronment(args) -> None:
     from matplotlib import pyplot as plt
     plt.switch_backend('agg')
 
+    if not args.sdir.exists():
+        raise FileNotFoundError(
+            "Folder specified as source doesn't exist. Please check your source directory.")
+
     # Creates output folder if not specified
     if args.ddir == None:
         i: int = 0
