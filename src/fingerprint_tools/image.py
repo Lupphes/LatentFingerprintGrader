@@ -117,7 +117,6 @@ class Image:
 
     @staticmethod
     def save_fig(dictionary: Dict, path: Path, name: str, ext: str) -> None:
-        # TODO: Scale text
         for variant in dictionary:
             for algorithm in dictionary[variant]:
                 fname = os.path.join(

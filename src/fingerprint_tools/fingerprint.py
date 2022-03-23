@@ -541,31 +541,38 @@ class Fingerprint:
         best_sin = square_diff_match(line_signal, sin_array, sin_one)
 
         if draw:
-            fig_sinus_all: plt.Figure = plt.figure(figsize=(40, 10), dpi=100)
+            fig_sinus_all: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
+            plt.title('Ridges compared to a partial sinusoid')
             plt.plot(line_signal, label="Ridges all", figure=fig_sinus_all)
             plt.plot(best_sin, label="Sinus all", figure=fig_sinus_all)
             plt.plot(local_max, points_y, 'o', color="green")
             for item in local_min:
                 plt.axvline(x=item, color='red', linestyle='--',
                             figure=fig_sinus_all)
-            plt.xlabel("Pixels (X)", figure=fig_sinus_all)
-            plt.ylabel("Grayscale values (Y)", figure=fig_sinus_all)
-            plt.legend()
+            plt.xlabel("Pixels (X)", fontsize='small', figure=fig_sinus_all)
+            plt.ylabel("Grayscale values (Y)",
+                       fontsize='small', figure=fig_sinus_all)
+            plt.legend(fontsize='small', loc='upper right')
+            plt.rc('font', size=14)
             plt.close()
             if not name in self.figure_dict:
                 self.figure_dict[name] = {}
             self.figure_dict[name]['sin_all'] = fig_sinus_all
 
             fig_sin_overview: plt.Figure = plt.figure(
-                figsize=(40, 10), dpi=100)
+                figsize=(22, 5), dpi=150)
+            plt.title('Overview of each ridge')
             plt.plot(line_signal, label="Ridges", figure=fig_sin_overview)
             plt.plot(local_max, points_y, 'o', color="green")
             for item in local_min:
                 plt.axvline(x=item, color='red', linestyle='--',
                             figure=fig_sin_overview)
-            plt.xlabel("Pixels (X)", figure=fig_sin_overview)
-            plt.ylabel("Grayscale values (Y)", figure=fig_sin_overview)
-            plt.legend()
+            plt.xlabel("Pixels (X)", fontsize='small',
+                       figure=fig_sin_overview)
+            plt.ylabel("Grayscale values (Y)", fontsize='small',
+                       figure=fig_sin_overview)
+            plt.legend(fontsize='small', loc='upper right')
+            plt.rc('font', size=14)
             plt.close()
             self.figure_dict[name]['sin_overview'] = fig_sin_overview
 
@@ -595,25 +602,33 @@ class Fingerprint:
 
             if draw and really:
                 fig_sin_one: plt.Figure = plt.figure(
-                    figsize=(20, 10), dpi=100)
+                    figsize=(10, 5), dpi=150)
+                plt.title('EACH ridge ptimized to its sinus DEBUG')
                 plt.plot(ridges[i], label="One ridge", figure=fig_sin_one)
                 plt.plot(best_sin, label="One sinus", figure=fig_sin_one)
-                plt.xlabel("Pixels (X)", figure=fig_sin_one)
-                plt.ylabel("Grayscale values (Y)", figure=fig_sin_one)
-                plt.legend()
+                plt.xlabel("Pixels (X)", fontsize='small',
+                           figure=fig_sin_one)
+                plt.ylabel("Grayscale values (Y)",
+                           fontsize='small', figure=fig_sin_one)
+                plt.legend(fontsize='small', loc='upper right')
+                plt.rc('font', size=14)
                 fig_sin_one.savefig(f"{self.name}_one_{i}.png")
                 plt.close()
 
         if draw:
             fig_sin_optimalised: plt.Figure = plt.figure(
-                figsize=(40, 10), dpi=100)
+                figsize=(22, 5), dpi=150)
+            plt.title('Optimized ridges each to match sinus')
             plt.plot(ridges_all_count, label="Ridges optimalised",
                      figure=fig_sin_optimalised)
             plt.plot(sin_all_count, label="Sinus optimalised",
                      figure=fig_sin_optimalised)
-            plt.xlabel("Pixels (X)", figure=fig_sin_optimalised)
-            plt.ylabel("Grayscale values (Y)", figure=fig_sin_optimalised)
-            plt.legend()
+            plt.xlabel("Pixels (X)", fontsize='small',
+                       figure=fig_sin_optimalised)
+            plt.ylabel("Grayscale values (Y)", fontsize='small',
+                       figure=fig_sin_optimalised)
+            plt.legend(fontsize='small', loc='upper right')
+            plt.rc('font', size=14)
             plt.close()
             self.figure_dict[name]['sin_optimalised'] = fig_sin_optimalised
 
@@ -641,13 +656,16 @@ class Fingerprint:
             if on_ridge and line_signal[i] < height_threshold:
                 on_ridge = False
         if draw:
-            fig_thickness = plt.figure(figsize=(40, 10), dpi=100)
+            fig_thickness = plt.figure(figsize=(22, 5), dpi=150)
+            plt.title('Thickness of ridges')
             plt.plot(line_signal, label="Ridges", figure=fig_thickness)
             plt.plot(display_thickness, label="Thickness",
                      figure=fig_thickness)
-            plt.xlabel("Pixels (X)", figure=fig_thickness)
-            plt.ylabel("Grayscale values (Y)", figure=fig_thickness)
-            plt.legend()
+            plt.xlabel("Pixels (X)", fontsize='small', figure=fig_thickness)
+            plt.ylabel("Grayscale values (Y)",
+                       fontsize='small', figure=fig_thickness)
+            plt.legend(fontsize='small', loc='upper right')
+            plt.rc('font', size=14)
             plt.close()
             if not name in self.figure_dict:
                 self.figure_dict[name] = {}
