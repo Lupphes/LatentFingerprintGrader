@@ -56,7 +56,7 @@ class ParseError(FingerToolsError):
 
 
 class FileError(FingerToolsError):
-    error_msg = "Encountered an exception while trying to interect with a specified file"
+    error_msg = "Encountered an exception while trying to interect with a specified file."
     exit_code = ErrorCodes.ERR_GENERAL_FILE
 
     def __init__(self, *args):
@@ -90,6 +90,38 @@ class ArrgumentError(FingerToolsError):
 class UndefinedVariableError(FingerToolsError):
     error_msg = "Variable which was called was not defined."
     exit_code = ErrorCodes.ERR_UNDEFINED_VARIABLE
+
+    def __init__(self, *args):
+        super().__init__(*args)
+
+
+class FingerprintQualityError(FingerToolsError):
+    error_msg = "Encountered a general exception while grading the fingerprint. Please check your input."
+    exit_code = ErrorCodes.ERR_GENERAL_PARSE
+
+    def __init__(self, *args):
+        super().__init__(*args)
+
+
+class EmptyMinutiaePointListError(FingerprintQualityError):
+    error_msg = "Fingerprint has no minutiae points, which was not expected—error in analysis."
+    exit_code = ErrorCodes.ERR_GENERAL_PARSE
+
+    def __init__(self, *args):
+        super().__init__(*args)
+
+
+class NoFingerprintError(FingerprintQualityError):
+    error_msg = "The fingerprint was not found on the image, which the script did not expect in the analysis."
+    exit_code = ErrorCodes.ERR_GENERAL_PARSE
+
+    def __init__(self, *args):
+        super().__init__(*args)
+
+
+class EmptyMaskError(FingerprintQualityError):
+    error_msg = "Mask does not contain information about fingerprint position. It is empty."
+    exit_code = ErrorCodes.ERR_GENERAL_PARSE
 
     def __init__(self, *args):
         super().__init__(*args)

@@ -8,7 +8,7 @@ from scipy.integrate import simpson
 from scipy.signal import butter, filtfilt, argrelextrema
 
 from .contrast_types import ContrastTypes
-from .exception import FileError, ArrgumentError, UndefinedVariableError
+from .exception import FileError, ArrgumentError, UndefinedVariableError, EmptyMaskError
 from .image import Image
 from .report import Report
 
@@ -93,6 +93,14 @@ class Fingerprint:
         return extractor_class
 
     def generate_helpers(self) -> None:
+        self.figure_dict = {}
+        self.image_dict = {}
+
+        if cv2.countNonZero(self.mask.image) == 0:
+            logging.info(
+                'There is no fingerprint on the image. Please check your input.')
+            return
+
         self.aec_masked = Image(self.aec.image)
         self.aec_masked.apply_mask(mask=self.mask)
 
@@ -111,11 +119,13 @@ class Fingerprint:
         self.bin_image_masked_filled = Image(self.bin_image.image)
         self.bin_image_masked_filled.apply_mask(mask=self.mask_filled)
 
-        self.figure_dict = {}
-        self.image_dict = {}
-
     def grade_fingerprint(self) -> None:
         logging.info(f'Grading {self.name}!')
+        if cv2.countNonZero(self.mask.image) == 0:
+            self.report.report_error(
+                'No_fingerprint', 'There is no fingerprint on the image. Please check your input.')
+            self.grade_minutiae_points()
+            return
 
         self.grade_minutiae_points()
         self.grade_contrast()
@@ -128,14 +138,14 @@ class Fingerprint:
 
         if len(gray_signal) == 0:
             self.report.report_error(
-                'gray', 'The returned empty array. No ridges found.')
+                'perpendicular_gray', 'No ridges were found. Couldn\'t find perpendicular or it was short (<15px). Further analysis is pointless.')
         else:
             self.grade_sinusoidal(gray_signal, 'gray')
             self.grade_thickness(gray_signal, 'gray')
 
         if len(aec_signal) == 0:
             self.report.report_error(
-                'aec', 'The returned empty array. No ridges found.')
+                'perpendicular_aec', 'No ridges were found. Couldn\'t find perpendicular or it was short (<15px). Further analysis is pointless.')
         else:
             self.grade_sinusoidal(aec_signal, 'aec')
             self.grade_thickness(aec_signal, 'aec')
@@ -146,14 +156,14 @@ class Fingerprint:
 
         if len(gray_signal_exp) == 0:
             self.report.report_error(
-                'gray_core', 'The returned empty array. No ridges found.')
+                'perpendicular_gray_esti_core', 'No ridges were found. Couldn\'t find perpendicular or it was short (<15px). Further analysis is pointless.')
         else:
             self.grade_sinusoidal(gray_signal_exp, 'gray_core')
             self.grade_thickness(gray_signal_exp, 'gray_core')
 
         if len(aec_signal_exp) == 0:
             self.report.report_error(
-                'aec_core', 'The returned empty array. No ridges found.')
+                'perpendicular_aec_esti_core', 'No ridges were found. Couldn\'t find perpendicular or it was short (<15px). Further analysis is pointless.')
         else:
             self.grade_sinusoidal(aec_signal_exp, 'aec_core')
             self.grade_thickness(aec_signal_exp, 'aec_core')
@@ -278,15 +288,15 @@ class Fingerprint:
 
         # Count number of horizontal lines
         horizontal = {
-            "count": {
-                "array": [],
-                "candidates": [],
-                "axis": []
+            'count': {
+                'array': [],
+                'candidates': [],
+                'axis': []
             },
-            "density": {
-                "array": [],
-                "candidates": [],
-                "axis": []
+            'density': {
+                'array': [],
+                'candidates': [],
+                'axis': []
             }
         }
         count: int = 0
@@ -322,15 +332,15 @@ class Fingerprint:
 
         # Count number of vertical lines
         vertical = {
-            "count": {
-                "array": [],
-                "candidates": [],
-                "axis": []
+            'count': {
+                'array': [],
+                'candidates': [],
+                'axis': []
             },
-            "density": {
-                "array": [],
-                "candidates": [],
-                "axis": []
+            'density': {
+                'array': [],
+                'candidates': [],
+                'axis': []
             }
         }
         count: int = 0
@@ -693,6 +703,10 @@ class Fingerprint:
     def cut_image(self, image_mask: Image, input_image: Image) -> Union[Image, int, int]:
         contours, _ = cv2.findContours(
             image_mask.image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        if (len(contours) == 0):
+            logging.error(
+                'Mask image is black. No fingerprint was found. This should\'ve been detected sooner. Check the output.')
+            raise EmptyMaskError()
         x, y, w, h = cv2.boundingRect(contours[0])
         return Image(input_image.image[y:y+h, x:x+w]), x, y
 
@@ -717,14 +731,14 @@ class Fingerprint:
                         i], -1, (255, 0, 0), 2)
                     cv2.circle(clahe_grayscale_center.image,
                                (cx, cy), 7, (0, 0, 255), -1)
-                    cv2.putText(clahe_grayscale_center.image, "center", (cx - 45, cy - 20),
+                    cv2.putText(clahe_grayscale_center.image, 'center', (cx - 45, cy - 20),
                                 cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
         self.report.report_center_cords(cx, cy, name)
 
         if not name in self.image_dict:
             self.image_dict[name] = {}
-        self.image_dict[name]["center_cords"] = clahe_grayscale_center
+        self.image_dict[name]['center_cords'] = clahe_grayscale_center
         return cx, cy
 
     def get_pependicular(self, cx: int, cy: int, name: str, angle_base=1):
@@ -846,6 +860,8 @@ class Fingerprint:
                 count_results.append(ridge_count)
 
         max_sobel_value = np.max(candidate_results)
+        if (max_sobel_value == 0):
+            return np.array([]), np.array([])
         angle = candidate_results.index(max_sobel_value)
         ridge_count = count_results[angle]
         angle *= angle_base
@@ -889,28 +905,28 @@ class Fingerprint:
         # Generate image which shows the progress
         if not name in self.image_dict:
             self.image_dict[name] = {}
-        self.image_dict[name]["pependicular"] = Image(make_image(
+        self.image_dict[name]['pependicular'] = Image(make_image(
             mask_ridges, angle, cx, cy, draw=True)
         )
-        self.image_dict[name]["pependicular_clahe"] = Image(make_image(
+        self.image_dict[name]['pependicular_clahe'] = Image(make_image(
             self.grayscale_clahe_masked, angle, cx, cy, draw=True)
         )
-        self.image_dict[name]["pependicular_aec"] = Image(make_image(
+        self.image_dict[name]['pependicular_aec'] = Image(make_image(
             self.aec_masked, angle, cx, cy, draw=True)
         )
 
         return extracted_grayscale_line, extracted_aec_line
 
-    def generate_images(self, path: Path, ext=".jpeg") -> None:
+    def generate_images(self, path: Path, ext='.jpeg') -> None:
         Image.save_img(self.image_dict, path, self.name, ext)
         Image.save_fig(self.figure_dict, path, self.name, ext)
 
     def show(self) -> None:
-        # Image.show("Raw", self.raw.image, scale=0.5)
-        Image.show("Grayscale", self.grayscale.image, scale=0.5)
-        # Image.show("Filtered", self.filtered.image, scale=0.5)
-        # Image.show("Binary", self.binary.image, scale=0.5)
+        # Image.show('Raw', self.raw.image, scale=0.5)
+        Image.show('Grayscale', self.grayscale.image, scale=0.5)
+        # Image.show('Filtered', self.filtered.image, scale=0.5)
+        # Image.show('Binary', self.binary.image, scale=0.5)
 
-        Image.show(name="Mask", image=self.mask, scale=0.5)
-        Image.show("AEC", self.aec, scale=0.5)
-        Image.show("Bin image", self.bin_image, scale=0.5)
+        Image.show(name='Mask', image=self.mask, scale=0.5)
+        Image.show('AEC', self.aec, scale=0.5)
+        Image.show('Bin image', self.bin_image, scale=0.5)
