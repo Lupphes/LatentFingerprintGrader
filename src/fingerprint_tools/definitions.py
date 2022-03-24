@@ -7,7 +7,7 @@ class MinutuaeThreshold(IntEnum):
 
 
 class RMSEThreshold(float, Enum):
-    VALID = 1.5
+    VALID = 2.3
 
 
 class NumberOfRidgesThreshold(IntEnum):

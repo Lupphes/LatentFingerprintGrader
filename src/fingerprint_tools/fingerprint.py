@@ -363,6 +363,7 @@ class Fingerprint:
 
                 extracted = self.remove_black_array(mask_ridges.image[:, y])
                 density = count/len(extracted)
+                # TODO: Tweek?
 
                 vertical['count']['array'].append(count)
                 vertical['density']['array'].append(density)
