@@ -260,6 +260,35 @@ class Fingerprint:
 
         return array
 
+    def local_max_min(self, line_signal: npt.NDArray[np.float64]) -> Tuple[int, npt.NDArray[np.float64], npt.NDArray[np.float64]]:
+        # Source: https://github.com/guillaume-chevalier/filtering-stft-and-laplace-transform
+        def butter_lowpass(cutoff: int, nyq_freq: np.float64, order=4):
+            normal_cutoff = float(cutoff) / nyq_freq
+            b, a = butter(order, normal_cutoff, btype='lowpass',
+                          analog=False, fs=None)
+            return b, a
+
+        def butter_lowpass_filter(x: npt.NDArray[np.float64], cutoff_freq: int, nyq_freq: np.float64, order=4) -> npt.NDArray[np.float64]:
+            b, a = butter_lowpass(cutoff_freq, nyq_freq, order=order)
+            y = filtfilt(b, a, x, axis=0)
+            return y
+
+        if len(line_signal) < 16:
+            self.report.report_error(
+                'perpendicular_low_pass', StringDatabase.ERR_PERPENDICULAR_TOO_SHORT)
+            return 0, None, None
+        low_pass = butter_lowpass_filter(line_signal, 5, 50/2)
+
+        local_min = argrelextrema(low_pass, np.less)[0]
+        local_max = argrelextrema(low_pass, np.greater)[0]
+
+        ridge_count = len(local_max)
+        if ridge_count == 0:
+            self.report.report_error(
+                'perpendicular_low_pass', StringDatabase.ERR_PERPENDICULAR_NO_RIDGE)
+
+        return ridge_count, local_max, local_min
+
     def grade_lines(self, name='lines', draw=True) -> None:
         # TODO: Does density and count match have relevance
 
@@ -479,17 +508,6 @@ class Fingerprint:
         return expected_core_x_off, expected_core_y_off
 
     def grade_sinusoidal(self, line_signal: npt.NDArray[np.uint8], name: str, draw=True, really=False) -> None:
-        # Source: https://github.com/guillaume-chevalier/filtering-stft-and-laplace-transform
-        def butter_lowpass(cutoff: int, nyq_freq: np.float64, order=4):
-            normal_cutoff = float(cutoff) / nyq_freq
-            b, a = butter(order, normal_cutoff, btype='lowpass',
-                          analog=False, fs=None)
-            return b, a
-
-        def butter_lowpass_filter(x: npt.NDArray[np.float64], cutoff_freq: int, nyq_freq: np.float64, order=4) -> npt.NDArray[np.float64]:
-            b, a = butter_lowpass(cutoff_freq, nyq_freq, order=order)
-            y = filtfilt(b, a, x, axis=0)
-            return y
 
         def square_diff_match(line_signal: npt.NDArray[np.float64], sin_array: npt.NDArray[np.float64], sin_one: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
             # Using the Difference of squares to find the best period aligement
@@ -517,26 +535,17 @@ class Fingerprint:
         line_signal: npt.NDArray[np.float64] = line_signal.astype(np.float64)
         line_signal /= np.max(np.abs(line_signal), axis=0)
 
-        if len(line_signal) < 16:
-            self.report.report_error(
-                'perpendicular_low_pass', StringDatabase.ERR_PERPENDICULAR_TOO_SHORT)
-            return
-        low_pass = butter_lowpass_filter(line_signal, 5, 50/2)
+        ridge_count, local_max, local_min = self.local_max_min(line_signal)
+        signal_lenght = len(line_signal)
 
-        local_min = argrelextrema(low_pass, np.less)[0]
-        local_max = argrelextrema(low_pass, np.greater)[0]
+        # Propagate error
+        if ridge_count == 0:
+            return
+
         points_y = np.full(len(local_max), 1.9, dtype=np.float16)
 
         # Normalize signal to <0;2>
         line_signal *= 2
-
-        ridge_count = len(local_max)
-        signal_lenght = len(line_signal)
-
-        if ridge_count == 0:
-            self.report.report_error(
-                'perpendicular_low_pass', StringDatabase.ERR_PERPENDICULAR_NO_RIDGE)
-            return
 
         ridge_per_part = signal_lenght // ridge_count
         rest = signal_lenght % ridge_count
@@ -623,7 +632,7 @@ class Fingerprint:
             if draw and really:
                 fig_sin_one: plt.Figure = plt.figure(
                     figsize=(10, 5), dpi=150)
-                plt.title('EACH ridge ptimized to its sinus DEBUG')
+                plt.title('EACH ridge optimized to its sinus DEBUG')
                 plt.plot(ridges[i], label='One ridge', figure=fig_sin_one)
                 plt.plot(best_sin, label='One sinus', figure=fig_sin_one)
                 plt.xlabel('Pixels (X)', fontsize='small',
@@ -655,26 +664,43 @@ class Fingerprint:
         self.report.report_sinusoidal(
             ridge_count, A_fp, A_sin, D_d, D_d_ridge, name)
 
-    def grade_thickness(self, line_signal: npt.NDArray[np.uint8], name: str, draw=True) -> None:
+    def grade_thickness(self, line_signal: npt.NDArray[np.uint8], name: str, draw=True, really=False) -> None:
+
+        def calculate_thickness(line_signal, threshold):
+            display_thickness = np.zeros(len(line_signal))
+            on_ridge = False
+            for i in range(len(line_signal)):
+                if not on_ridge and line_signal[i] > threshold:
+                    on_ridge = True
+                if on_ridge and line_signal[i] > threshold:
+                    display_thickness[i] = threshold
+                if on_ridge and line_signal[i] < threshold:
+                    on_ridge = False
+            return display_thickness
+
         # TODO: Check thickness DPI but should be alright
         average_thickness = 0.033  # mm
-
-        # 18% defined by literature
-        height_threshold = 18 / 100
 
         # Normalization
         line_signal: npt.NDArray[np.float64] = line_signal.astype(np.float64)
         line_signal /= np.max(np.abs(line_signal), axis=0)
 
-        display_thickness = np.zeros(len(line_signal))
-        on_ridge = False
-        for i in range(len(line_signal)):
-            if not on_ridge and line_signal[i] > height_threshold:
-                on_ridge = True
-            if on_ridge and line_signal[i] > height_threshold:
-                display_thickness[i] = height_threshold
-            if on_ridge and line_signal[i] < height_threshold:
-                on_ridge = False
+        ridge_count, local_max, local_min = self.local_max_min(line_signal)
+        signal_lenght = len(line_signal)
+
+        # Propagate error
+        if ridge_count == 0:
+            return
+
+        # Normalize signal to <0;2>
+        # For consistency
+        line_signal *= 2
+
+        # 18% defined by literature
+        height_threshold = 18 / 200
+
+        display_thickness = calculate_thickness(line_signal, height_threshold)
+
         if draw:
             fig_thickness = plt.figure(figsize=(22, 5), dpi=150)
             plt.title('Thickness of ridges')
@@ -691,19 +717,76 @@ class Fingerprint:
                 self.figure_dict[name] = {}
             self.figure_dict[name]['thick'] = fig_thickness
 
-        # Split the ridges into individual arrays
-        ridges_separated = np.where(display_thickness != 0)[0]
-        ridges_list = np.split(display_thickness[ridges_separated],
-                               np.where(np.diff(ridges_separated) != 1)[0]+1)
+        # Calibrate the height threshold thickness for each ridge
+        ridges = np.split(line_signal, local_min)[1:-1]
 
-        # Transform the pixels into readable format
-        base = 2.54 / self.ppi
-        # TODO: Evaluate if PPI is good
         ridge_thickness = []
-        for item in ridges_list:
-            Th = base * len(item)
-            Dth = (Th/average_thickness - 1) * 100
-            ridge_thickness.append(Dth)
+        base = 2.54 / 500
+
+        thick_all = []
+        thich_ideal = []
+        ridges_all = []
+        for i in range(len(ridges)):
+            ridge_max = max(ridges[i])
+            ridge_min = min(ridges[i])
+            optimalized_height_threshold = (18 * ridge_max / 100) + ridge_min
+
+            optimalized_thickness = calculate_thickness(
+                ridges[i], optimalized_height_threshold)
+
+            thick_all = np.append(thick_all, optimalized_thickness)
+            thich_ideal = np.append(thich_ideal, np.full(
+                len(ridges[i]), optimalized_height_threshold))
+            ridges_all = np.append(ridges_all, ridges[i])
+
+            # Split the ridges into individual arrays
+            ridges_separated = np.where(optimalized_thickness != 0)[0]
+            ridges_list = np.split(optimalized_thickness[ridges_separated],
+                                   np.where(np.diff(ridges_separated) != 1)[0]+1)
+            # Transform the pixels into readable format
+            # TODO: Evaluate if PPI is good
+            for item in ridges_list:
+                Th = base * len(item)
+                Dth = (Th/average_thickness - 1) * 100
+                ridge_thickness.append(Dth)
+
+            if draw and really:
+                fig_height_one: plt.Figure = plt.figure(
+                    figsize=(10, 5), dpi=150)
+                plt.title('EACH ridge optimized to height DEBUG')
+                plt.plot(ridges[i], label='One ridge', figure=fig_height_one)
+                plt.plot(optimalized_thickness, label='Thickness',
+                         figure=fig_height_one)
+                plt.plot(list(ridges[i]).index(
+                    ridge_max), ridge_max, 'o', color='green', label='Maximal height')
+                plt.axhline(y=optimalized_height_threshold, color='red', linestyle='--',
+                            figure=fig_height_one, label='Ideal thickness')
+                plt.xlabel('Pixels (X)', fontsize='small',
+                           figure=fig_height_one)
+                plt.ylabel('Grayscale values (Y)',
+                           fontsize='small', figure=fig_height_one)
+                plt.legend(fontsize='small', loc='upper right')
+                plt.rc('font', size=14)
+                fig_height_one.savefig(f'{self.name}_one_height_{i}.png')
+                plt.close()
+
+        if draw:
+            fig_ridge_optimalised: plt.Figure = plt.figure(
+                figsize=(22, 5), dpi=150)
+            plt.title('Optimized ridge thicknes')
+            plt.plot(ridges_all, label='Ridges', figure=fig_ridge_optimalised)
+            plt.plot(thick_all, label='Thickness',
+                     figure=fig_ridge_optimalised)
+            plt.plot(thich_ideal, label='Ideal thicknes',
+                     figure=fig_ridge_optimalised)
+            plt.xlabel('Pixels (X)', fontsize='small',
+                       figure=fig_ridge_optimalised)
+            plt.ylabel('Grayscale values (Y)',
+                       fontsize='small', figure=fig_ridge_optimalised)
+            plt.legend(fontsize='small', loc='upper right')
+            plt.rc('font', size=14)
+            plt.close()
+            self.figure_dict[name]['ridge_optimalised'] = fig_ridge_optimalised
 
         self.report.report_thickness(ridge_thickness, name)
 
@@ -887,9 +970,9 @@ class Fingerprint:
             self.aec_masked, angle, cx, cy, draw=False
         )
 
-        extracted_grayscale_line = self.clahe_grayscale_rotated.image[:cy_rot, cx_rot:cx_rot+1]
-        extracted_aec_line = self.aec_masked_rotated.image[:cy_rot,
-                                                           cx_rot:cx_rot+1]
+        extracted_grayscale_line: npt.NDArray[np.uint8] = self.clahe_grayscale_rotated.image[:cy_rot, cx_rot:cx_rot+1]
+        extracted_aec_line: npt.NDArray[np.uint8] = self.aec_masked_rotated.image[:cy_rot,
+                                                                                  cx_rot:cx_rot+1]
 
         extracted_grayscale_line = np.rot90(extracted_grayscale_line)[0]
         extracted_aec_line = np.rot90(extracted_aec_line)[0]
@@ -911,6 +994,9 @@ class Fingerprint:
 
         extracted_aec_line = self.remove_black_array(
             extracted_aec_line)
+
+        extracted_grayscale_line = np.invert(extracted_grayscale_line)
+        extracted_aec_line = np.invert(extracted_aec_line)
 
         self.report.report_perpendicular(angle, ridge_count, name)
 
