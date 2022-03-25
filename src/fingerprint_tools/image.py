@@ -2,6 +2,7 @@ from __future__ import annotations
 import os
 import cv2
 import numpy as np
+import numpy.typing as npt
 
 from pathlib import Path
 
@@ -12,10 +13,13 @@ from typing import Dict
 
 class Image:
     def __init__(self, image):
-        self.image: np.ndarray = image
+        self.image: npt.NDArray = image
 
     def image_to_grayscale(self) -> None:
         self.image = cv2.cvtColor(self.image, cv2.COLOR_BGR2GRAY)
+
+    def image_to_color(self) -> None:
+        self.image = cv2.cvtColor(self.image, cv2.COLOR_GRAY2RGB)
 
     def calculate_histogram(self) -> None:
         return cv2.calcHist(self.image, [0], None, [256], [0, 256])

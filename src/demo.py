@@ -20,7 +20,7 @@ def argument_parse() -> argparse.ArgumentParser:
 
     parser = argparse.ArgumentParser(
         add_help=True,
-        prog="LatFigGra",
+        prog='LatFigGra',
         description='LatFigGra (Latent Fingerprint Grader) 2022, Author: Ondřej Sloup (xsloup02)'
     )
     parser.add_argument(
@@ -73,10 +73,11 @@ def set_envinronment(args) -> None:
     # JASPER (JP2000) has vulnerabilities and needs
     # to be explicitely turned on
     # https://github.com/opencv/opencv/issues/14058
-    if args.ext == "jp2":
-        os.environ['OPENCV_IO_ENABLE_JASPER'] = "true"
+    if args.ext == 'jp2':
+        os.environ['OPENCV_IO_ENABLE_JASPER'] = 'true'
         logging.warning(
-            'Jasper project has many opened vulnerabilities. Beware what are you opening!')
+            'Jasper project has many opened vulnerabilities. Beware what are you opening!'
+        )
 
     # Setting environment vars for tensorflow
     os.environ['KERAS_BACKEND'] = 'tensorflow'
@@ -88,7 +89,8 @@ def set_envinronment(args) -> None:
 
     if not args.sdir.exists():
         raise FileNotFoundError(
-            "Folder specified as source doesn't exist. Please check your source directory.")
+            'Folder specified as source doesn\'t exist. Please check your source directory.'
+        )
 
     # Creates output folder if not specified
     if args.ddir == None:
@@ -136,8 +138,9 @@ def main(args) -> None:
                     os.makedirs(path_img_des_dir)
 
                 # Create a fingerprint object
-                fingerprint_image: fp.fingerprint.Fingerprint = fp.fingerprint.Fingerprint(
-                    path=path_image_src, ppi=args.ppi)
+                fingerprint_image = fp.fingerprint.Fingerprint(
+                    path=path_image_src, ppi=args.ppi
+                )
 
                 # Restore or generate pickle file for faster calculation
                 if args.regenerate or not os.path.exists(path_pickle):
@@ -156,7 +159,7 @@ def main(args) -> None:
                 fingerprint_image.generate_rating(
                     os.path.dirname(path_img_des_dir))
                 fingerprint_image.generate_images(
-                    path_img_des_dir, ".jpeg")  # args.ext
+                    path_img_des_dir, '.jpeg')  # args.ext
 
 
 if __name__ == "__main__":
