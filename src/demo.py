@@ -145,7 +145,7 @@ def main(args) -> None:
                 # Restore or generate pickle file for faster calculation
                 if args.regenerate or not os.path.exists(path_pickle):
                     msu_afis = fingerprint_image.msu_afis(
-                        path_image=path_image_src, path_destination=path_img_des_dir, extractor_class=msu_afis)
+                        path_image=path_image_src, path_destination=path_img_des_dir, extractor_class=msu_afis, ext='.jpeg')  # args.ext
 
                     with open(path_pickle, 'wb') as handle:
                         pickle.dump(fingerprint_image, handle,

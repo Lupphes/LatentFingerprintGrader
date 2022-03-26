@@ -71,26 +71,20 @@ class Fingerprint:
 
         return image2blocks(image, block_size)
 
-    def msu_afis(self, path_image: str, path_destination: str, extractor_class=None):
-        from .msu_latentafis.extraction_latent import get_feature_extractor, FeatureExtraction_Latent
+    def msu_afis(self, path_image: str, path_destination: str, ext: str, extractor_class=None):
+        from .msu_latentafis.extraction_latent import get_latent_graphs, FeatureExtraction_Latent
         if extractor_class == None:
-            extractor_class: FeatureExtraction_Latent = get_feature_extractor()
+            extractor_class: FeatureExtraction_Latent = get_latent_graphs()
 
         logging.info(f'Curently processing: "{self.name}"')
-        extractor_class.feature_extraction_single_latent(
-            img_file=path_image, output_dir=str(os.path.abspath(path_destination)), ppi=self.ppi, show_processes=False,
-            minu_file=None, show_minutiae=True
+        self.common_minutiae, self.mask, self.aec, self.bin_image = extractor_class.latent_extraction(
+            img_file=path_image, output_dir=str(os.path.abspath(path_destination)), ppi=self.ppi,
+            minu_file=None, show_minutiae=True, ext=ext
         )
 
-        self.common_minutiae: list = [
-            extractor_class.common1,
-            extractor_class.common2,
-            extractor_class.common3,
-            extractor_class.common4
-        ]
-        self.mask: Image = Image(extractor_class.mask)
-        self.aec: Image = Image(extractor_class.aec)
-        self.bin_image: Image = Image(extractor_class.bin_image)
+        self.mask: Image = Image(self.mask)
+        self.aec: Image = Image(self.aec)
+        self.bin_image: Image = Image(self.bin_image)
 
         self.generate_helpers()
 
@@ -318,15 +312,15 @@ class Fingerprint:
         mask_ridges_color_uncut.image_to_color()
 
         mask_ridges_color_horizontal_count = Image(
-            mask_ridges_color_count.image)
+            mask_ridges_color_count.image.copy())
         mask_ridges_color_vertical_count = Image(
-            mask_ridges_color_count.image)
+            mask_ridges_color_count.image.copy())
 
-        mask_ridges_color_density = Image(mask_ridges_color_count.image)
+        mask_ridges_color_density = Image(mask_ridges_color_count.image.copy())
         mask_ridges_color_horizontal_density = Image(
-            mask_ridges_color_count.image)
+            mask_ridges_color_count.image.copy())
         mask_ridges_color_vertical_density = Image(
-            mask_ridges_color_count.image)
+            mask_ridges_color_count.image.copy())
 
         # Count number of horizontal lines
         horizontal = {
