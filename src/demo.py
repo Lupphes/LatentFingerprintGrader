@@ -37,6 +37,9 @@ def argument_parse() -> argparse.ArgumentParser:
         '-d', '--ddir', type=Path, help='Path to the destination folder, where the script will store fingerprint images and logs.'
     )
     parser.add_argument(
+        '-m', '--models', type=Path, help='Path to the model folder', default='models'
+    )
+    parser.add_argument(
         '-r', '--regenerate', help='Flag to regenerate already computed fingerprints (their pickle files) despite their existence.', action='store_true'
     )
     parser.add_argument(
@@ -101,7 +104,7 @@ def set_envinronment(args) -> None:
             args.ddir = (args.sdir).with_name(args.sdir.name + f'_out_{i}')
 
 
-def main(args) -> None:
+def main(args: argparse.ArgumentParser) -> None:
     """ 
     Main function of LatFigGra (Latent Fingerprint Grader) 
     Ondřej Sloup (xsloup02)
@@ -145,7 +148,7 @@ def main(args) -> None:
                 # Restore or generate pickle file for faster calculation
                 if args.regenerate or not os.path.exists(path_pickle):
                     msu_afis = fingerprint_image.msu_afis(
-                        path_image=path_image_src, path_destination=path_img_des_dir, extractor_class=msu_afis, ext='.jpeg')  # args.ext
+                        path_image=path_image_src, path_destination=path_img_des_dir, path_config=args.models, extractor_class=msu_afis, ext='.jpeg')  # args.ext
 
                     with open(path_pickle, 'wb') as handle:
                         pickle.dump(fingerprint_image, handle,

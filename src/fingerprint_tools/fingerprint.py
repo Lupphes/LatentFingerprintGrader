@@ -71,10 +71,12 @@ class Fingerprint:
 
         return image2blocks(image, block_size)
 
-    def msu_afis(self, path_image: str, path_destination: str, ext: str, extractor_class=None):
-        from .msu_latentafis.extraction_latent import get_latent_graphs, FeatureExtraction_Latent
+    def msu_afis(self, path_image: str, path_destination: str, path_config: Path, ext: str, extractor_class=None):
+        from .msu_latentafis.extraction_latent import load_graphs, LatentExtractionModel
         if extractor_class == None:
-            extractor_class: FeatureExtraction_Latent = get_latent_graphs()
+            extractor_class: LatentExtractionModel = load_graphs(
+                path_config
+            )
 
         logging.info(f'Curently processing: "{self.name}"')
         self.common_minutiae, self.mask, self.aec, self.bin_image = extractor_class.latent_extraction(
