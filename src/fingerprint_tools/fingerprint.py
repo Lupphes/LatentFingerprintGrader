@@ -72,8 +72,10 @@ class Fingerprint:
         return image2blocks(image, block_size)
 
     def msu_afis(self, path_image: str, path_destination: str, path_config: Path, ext: str, extractor_class=None):
-        from .msu_latentafis.extraction_latent import load_graphs, LatentExtractionModel
         if extractor_class == None:
+            logging.info("Loading Tensorflow and other modules...")
+            from .msu_latentafis.extraction_latent import load_graphs, LatentExtractionModel
+            logging.info("All loaded!")
             extractor_class: LatentExtractionModel = load_graphs(
                 path_config
             )
@@ -120,6 +122,24 @@ class Fingerprint:
         self.bin_image_masked_filled = Image(self.bin_image.image)
         self.bin_image_masked_filled.apply_mask(mask=self.mask_filled)
 
+    def line_grading(self, x: int, y: int, name: str, var: str):
+        gray_signal, aec_signal = self.get_perpendicular(x, y, name=name)
+
+        if len(gray_signal) == 0:
+            self.report.report_error(
+                f'perpendicular_gray_{var}', StringDatabase.ERR_PERPENDICULAR_GENERAL)
+        else:
+            self.grade_sinusoidal(gray_signal, f'gray{var}')
+            self.grade_thickness(gray_signal, f'gray{var}')
+
+        if len(aec_signal) == 0:
+            self.report.report_error(
+                f'perpendicular_aec_{var}', StringDatabase.ERR_PERPENDICULAR_GENERAL)
+        else:
+            self.grade_sinusoidal(aec_signal, f'aec{var}')
+            self.grade_thickness(aec_signal, f'aec{var}')
+        return
+
     def grade_fingerprint(self) -> None:
         logging.info(f'Grading {self.name}!')
 
@@ -136,41 +156,8 @@ class Fingerprint:
         exp_x, exp_y = self.grade_lines()
         cent_x, cent_y = self.get_center_cords('mask_center')
 
-        # With mask center
-        gray_signal, aec_signal = self.get_perpendicular(
-            cent_x, cent_y, name='mask_center')
-
-        if len(gray_signal) == 0:
-            self.report.report_error(
-                'perpendicular_gray', StringDatabase.ERR_PERPENDICULAR_GENERAL)
-        else:
-            self.grade_sinusoidal(gray_signal, 'gray')
-            self.grade_thickness(gray_signal, 'gray')
-
-        if len(aec_signal) == 0:
-            self.report.report_error(
-                'perpendicular_aec', StringDatabase.ERR_PERPENDICULAR_GENERAL)
-        else:
-            self.grade_sinusoidal(aec_signal, 'aec')
-            self.grade_thickness(aec_signal, 'aec')
-
-        # With estimated core
-        gray_signal_exp, aec_signal_exp = self.get_perpendicular(
-            exp_x, exp_y, name='estimated_core')
-
-        if len(gray_signal_exp) == 0:
-            self.report.report_error(
-                'perpendicular_gray_esti_core', StringDatabase.ERR_PERPENDICULAR_GENERAL)
-        else:
-            self.grade_sinusoidal(gray_signal_exp, 'gray_core')
-            self.grade_thickness(gray_signal_exp, 'gray_core')
-
-        if len(aec_signal_exp) == 0:
-            self.report.report_error(
-                'perpendicular_aec_esti_core', StringDatabase.ERR_PERPENDICULAR_GENERAL)
-        else:
-            self.grade_sinusoidal(aec_signal_exp, 'aec_core')
-            self.grade_thickness(aec_signal_exp, 'aec_core')
+        self.line_grading(cent_x, cent_y, 'mask_center', '')
+        self.line_grading(exp_x, exp_y, 'estimated_core', '_core')
 
         logging.info(f'Grading {self.name} finished!')
 

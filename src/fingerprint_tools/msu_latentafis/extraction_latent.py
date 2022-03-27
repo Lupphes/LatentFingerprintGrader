@@ -1,7 +1,5 @@
-import os
 import cv2
 import math
-import json
 import logging
 from timeit import default_timer as timer
 from pathlib import Path
@@ -24,15 +22,14 @@ from .import_graph import get_patch_index, Descriptor, MinutiaeExtraction, AutoE
 
 
 class LatentExtractionModel:
-    def __init__(self, des_model_dirs=None, minu_model_dirs=None, enhancement_model_dir=None, coarsenet_dir=None):
+    def __init__(self, des_model_dirs=None, minu_model_dirs=None, enhancement_model_dir=None):
 
         self.des_models = None
         self.minu_model = None
 
-        self.minu_model_dirs = minu_model_dirs
-        self.des_model_dirs = des_model_dirs
-        self.enhancement_model_dir = enhancement_model_dir
-        self.coarsenet_dir = coarsenet_dir
+        self.minu_model_dirs: Path = minu_model_dirs
+        self.des_model_dirs: Path = des_model_dirs
+        self.enhancement_model_dir: Path = enhancement_model_dir
 
         # Obtaining maps
         maps = construct_dictionary(ori_num=60)
@@ -73,7 +70,7 @@ class LatentExtractionModel:
 
         if self.enhancement_model_dir is not None:
             logging.info("Loading enhancement model: " +
-                         self.enhancement_model_dir)
+                         self.enhancement_model_dir.as_posix())
             emodel = AutoEncoder(enhancement_model_dir)
             self.enhancement_model = emodel
 
@@ -430,7 +427,6 @@ class LatentExtractionModel:
 
 
 def load_graphs(path_config: Path):
-    path_config = path_config.resolve()
     """Returns an instance of the latent feature extractor class"""
     DescriptorModelPatch2 = path_config / \
         "embeddingsize_64_patchtype_2/20180410-213622/"
@@ -447,14 +443,14 @@ def load_graphs(path_config: Path):
 
     return LatentExtractionModel(
         des_model_dirs=[
-            str(DescriptorModelPatch2),
-            str(DescriptorModelPatch8),
-            str(DescriptorModelPatch11)
+            DescriptorModelPatch2,
+            DescriptorModelPatch8,
+            DescriptorModelPatch11
         ],
-        enhancement_model_dir=str(EnhancementModel),
+        enhancement_model_dir=EnhancementModel,
         minu_model_dirs=[
-            str(MinutiaeExtractionModelLatentSTFT),
-            str(MinutiaeExtractionModel)
+            MinutiaeExtractionModelLatentSTFT,
+            MinutiaeExtractionModel
         ]
     )
 

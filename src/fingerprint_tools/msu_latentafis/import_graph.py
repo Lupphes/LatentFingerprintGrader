@@ -1,10 +1,12 @@
-import re
 import math
-import os
+from typing import Tuple
 import numpy as np
 from pathlib import Path
 
-import tensorflow as tf
+from tensorflow.compat.v1 import disable_v2_behavior, get_default_graph, Session
+from tensorflow.compat.v1.train import import_meta_graph
+from tensorflow import Graph
+from tensorflow import train
 import scipy.misc
 
 
@@ -13,32 +15,29 @@ class ImportGraph():
 
     def __init__(self):
         # Defaults to Tensorflow 1.x behaviour
-        tf.compat.v1.disable_v2_behavior()
-        self.graph = tf.Graph()
-        self.sess = tf.compat.v1.Session(graph=self.graph)
+        disable_v2_behavior()
+        self.graph = Graph()
+        self.sess = Session(graph=self.graph)
 
-    def load_graph(self, model_dir, input_name='QueueInput/input_deque:0', output_name='reconstruction/gen:0', special=False):
+    def load_graph(self, model_dir: Path, input_name='QueueInput/input_deque:0', output_name='reconstruction/gen:0', special=False):
         with self.graph.as_default():
             meta_file, ckpt_file = get_model_filenames(
-                os.path.expanduser(model_dir), special=special
+                model_dir, special=special
             )
-            model_dir_exp = os.path.expanduser(model_dir)
 
-            saver = tf.compat.v1.train.import_meta_graph(
-                os.path.abspath(os.path.join(model_dir_exp, meta_file))
-            )
-            saver.restore(self.sess, os.path.join(model_dir_exp, ckpt_file))
+            saver = import_meta_graph(meta_file)
+            saver.restore(self.sess, ckpt_file)
 
-            self.images_placeholder = tf.compat.v1.get_default_graph(
+            self.images_placeholder = get_default_graph(
             ).get_tensor_by_name(input_name)
-            self.phase_train_placeholder = tf.compat.v1.get_default_graph(
+            self.phase_train_placeholder = get_default_graph(
             ).get_tensor_by_name(output_name)
 
 
 class MinutiaeExtraction(ImportGraph):
     SHAPE = ImportGraph.SHAPE
 
-    def __init__(self, model_dir):
+    def __init__(self, model_dir: Path):
         super().__init__()
         self.weight = get_weights(self.SHAPE, self.SHAPE, 12, sigma=None)
         super().load_graph(model_dir)
@@ -138,7 +137,7 @@ class MinutiaeExtraction(ImportGraph):
 class AutoEncoder(ImportGraph):
     SHAPE = ImportGraph.SHAPE
 
-    def __init__(self, model_dir):
+    def __init__(self, model_dir: Path):
         super().__init__()
         self.weight = get_weights(self.SHAPE, self.SHAPE, 1, sigma=None)
         super().load_graph(model_dir)
@@ -201,7 +200,7 @@ class Descriptor(ImportGraph):
         super().__init__()
         super().load_graph(model_dir, input_name, output_name, special=True)
         with self.graph.as_default():
-            self.embeddings = tf.compat.v1.get_default_graph().get_tensor_by_name(result_name)
+            self.embeddings = get_default_graph().get_tensor_by_name(result_name)
 
     def run(self, imgs):
         feed_dict = {self.images_placeholder: imgs,
@@ -245,34 +244,15 @@ def get_weights(h, w, c, sigma=None):
     return weight
 
 
-def get_model_filenames(model_dir, special=False):
+def get_model_filenames(model_dir: Path, special=False) -> Tuple[Path, str]:
     meta_file = None
-    for i in Path(model_dir).glob('**/*'):
-        if i.suffix == 'meta':
-            print(i.name)
-            meta_file = i.name
-
-    files = os.listdir(model_dir)
-    meta_files = [s for s in files if s.endswith('.meta')]
-    if len(meta_files) == 0:
-        raise ValueError(
-            f'No meta file found in the model directory ({model_dir})')
-    elif len(meta_files) > 1:
-        raise ValueError(
-            f'There should not be more than one meta file in the model directory ({model_dir})')
-    meta_file = meta_files[0]
-    if special:
-        meta_files = [s for s in files if '.ckpt' in s]
-        max_step = -1
-        for f in files:
-            step_str = re.match(r'(^model-[\w\- ]+.ckpt-(\d+))', f)
-            if step_str is not None and len(step_str.groups()) >= 2:
-                step = int(step_str.groups()[1])
-                if step > max_step:
-                    max_step = step
-                    ckpt_file = step_str.groups()[0]
-    else:
-        ckpt_file = tf.train.latest_checkpoint(model_dir)
+    for p in Path(model_dir).rglob("*"):
+        if p.suffix == '.meta':
+            meta_file = p.as_posix()
+        elif special and p.suffix == '.index':
+            ckpt_file = (model_dir/p.stem).as_posix()
+    if not special:
+        ckpt_file = train.latest_checkpoint(model_dir.as_posix())
     return meta_file, ckpt_file
 
 
