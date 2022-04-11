@@ -37,7 +37,7 @@ class Classification(str, Enum):
     UNKNOWN = 'UNK'
 
 
-def report2dict(rating, report, quatity, rmse, n_rig, sin_s, thick, sin_s_core, thick_core):
+def report2dict(rating, report, quatity, rmse, n_rig, sin_s, thick, sin_s_core, thick_core, sin_s_gray, thick_gray, sin_s_core_gray, thick_core_gray):
     if quatity != None:
         report[rating]['min_points'].append(quatity)
     if rmse != None:
@@ -52,6 +52,14 @@ def report2dict(rating, report, quatity, rmse, n_rig, sin_s, thick, sin_s_core, 
         report[rating]['sin_s_core'].append(sin_s_core)
     if thick_core != None:
         report[rating]['thick_core'].append(thick_core)
+    if sin_s_gray != None:
+        report[rating]['sin_s_gray'].append(sin_s_gray)
+    if thick_gray != None:
+        report[rating]['thick_gray'].append(thick_gray)
+    if sin_s_core_gray != None:
+        report[rating]['sin_s_core_gray'].append(sin_s_core_gray)
+    if thick_core_gray != None:
+        report[rating]['thick_core_gray'].append(thick_core_gray)
 
 
 def generateJSON(report, output_path, filename='log_test.json'):
@@ -77,7 +85,11 @@ def main(args: argparse.ArgumentParser) -> None:
             'sin_s': [],
             'thick': [],
             'sin_s_core': [],
-            'thick_core': []
+            'thick_core': [],
+            'sin_s_gray': [],
+            'thick_gray': [],
+            'sin_s_core_gray': [],
+            'thick_core_gray': []
         },
         Classification.BAD: {
             'min_points': [],
@@ -86,7 +98,11 @@ def main(args: argparse.ArgumentParser) -> None:
             'sin_s': [],
             'thick': [],
             'sin_s_core': [],
-            'thick_core': []
+            'thick_core': [],
+            'sin_s_gray': [],
+            'thick_gray': [],
+            'sin_s_core_gray': [],
+            'thick_core_gray': []
         },
         Classification.UGLY: {
             'min_points': [],
@@ -95,7 +111,11 @@ def main(args: argparse.ArgumentParser) -> None:
             'sin_s': [],
             'thick': [],
             'sin_s_core': [],
-            'thick_core': []
+            'thick_core': [],
+            'sin_s_gray': [],
+            'thick_gray': [],
+            'sin_s_core_gray': [],
+            'thick_core_gray': []
         },
         Classification.UNKNOWN: {
             'min_points': [],
@@ -104,7 +124,11 @@ def main(args: argparse.ArgumentParser) -> None:
             'sin_s': [],
             'thick': [],
             'sin_s_core': [],
-            'thick_core': []
+            'thick_core': [],
+            'sin_s_gray': [],
+            'thick_gray': [],
+            'sin_s_core_gray': [],
+            'thick_core_gray': []
         },
     }
 
@@ -129,6 +153,8 @@ def main(args: argparse.ArgumentParser) -> None:
             if not 'papillary_crosscut' in file_data[print_name]:
                 sin_s = None
                 thick = None
+                sin_s_gray = None
+                thick_gray = None
             else:
                 dict_sin = file_data[print_name]['papillary_crosscut']['sinusoidal_shape']
                 dict_thick = file_data[print_name]['papillary_crosscut']['thickness']
@@ -153,8 +179,31 @@ def main(args: argparse.ArgumentParser) -> None:
                     thick_core = np.mean(
                         dict_thick['aec_core']['thickness_difference'])
 
+                if not 'gray' in dict_sin or len(dict_sin['gray']['D_D_ridges']) == 0:
+                    sin_s_gray = None
+                else:
+                    sin_s_gray = np.mean(dict_sin['gray']['D_D_ridges'])
+
+                if not 'gray_core' in dict_sin or len(dict_sin['gray_core']['D_D_ridges']) == 0:
+                    sin_s_core_gray = None
+                else:
+                    sin_s_core_gray = np.mean(
+                        dict_sin['gray_core']['D_D_ridges'])
+
+                if not 'gray' in dict_thick or len(dict_thick['gray']['thickness_difference']) == 0:
+                    thick_gray = None
+                else:
+                    thick_gray = np.mean(
+                        dict_thick['gray']['thickness_difference'])
+
+                if not 'gray_core' in dict_thick or len(dict_thick['gray_core']['thickness_difference']) == 0:
+                    thick_core_gray = None
+                else:
+                    thick_core_gray = np.mean(
+                        dict_thick['gray_core']['thickness_difference'])
+
             report2dict(quality_class, report, quatity, rmse,
-                        n_rig, sin_s, thick, sin_s_core, thick_core)
+                        n_rig, sin_s, thick, sin_s_core, thick_core, sin_s_gray, thick_gray, sin_s_core_gray, thick_core_gray)
 
     generateJSON(report=report, output_path=output_path)
 
@@ -183,7 +232,7 @@ def main(args: argparse.ArgumentParser) -> None:
 
             total_displayed += 1
 
-        rating_array += report[quality_class]['n_rig']
+        rating_array += report[quality_class]['min_points']
     rating_len = len(rating_array)
 
     z = np.polyfit(np.arange(rating_len), rating_array, 1)
@@ -221,7 +270,7 @@ def main(args: argparse.ArgumentParser) -> None:
 
             total_displayed += 1
 
-        rating_array += report[quality_class]['n_rig']
+        rating_array += report[quality_class]['rmse']
 
     rating_len = len(rating_array)
 
@@ -306,7 +355,7 @@ def main(args: argparse.ArgumentParser) -> None:
             plt.plot(np.arange(rating_len) + total_displayed - rating_len, np.full(rating_len,
                      np.mean(rating_array)), color='black', linestyle='--', label='Mean value')
 
-    plt.title('Sinusoidal crosscut aec')
+    plt.title('Sinusoidal Crosscut AEC')
     plt.xlabel('Fingeprint number', fontsize='small', figure=sin_s)
     plt.ylabel('Sinusoidal deviance', fontsize='small', figure=sin_s)
     plt.axhline(y=0, color='r', linestyle='-')
@@ -339,14 +388,14 @@ def main(args: argparse.ArgumentParser) -> None:
 
             total_displayed += 1
 
-        rating_array = report[quality_class]['sin_s']
+        rating_array = report[quality_class]['thick']
         rating_len = len(rating_array)
 
         if rating_len != 0:
             plt.plot(np.arange(rating_len) + total_displayed - rating_len, np.full(rating_len,
                      np.mean(rating_array)), color='black', linestyle='--', label='Mean value')
 
-    plt.title('Thickness aec')
+    plt.title('Thickness AEC')
     plt.xlabel('Fingeprint number', fontsize='small', figure=thick)
     plt.ylabel('Sinusoidal deviance', fontsize='small', figure=thick)
     plt.axhline(y=0, color='r', linestyle='-')
@@ -379,14 +428,14 @@ def main(args: argparse.ArgumentParser) -> None:
 
             total_displayed += 1
 
-        rating_array = report[quality_class]['sin_s']
+        rating_array = report[quality_class]['sin_s_core']
         rating_len = len(rating_array)
 
         if rating_len != 0:
             plt.plot(np.arange(rating_len) + total_displayed - rating_len, np.full(rating_len,
                      np.mean(rating_array)), color='black', linestyle='--', label='Mean value')
 
-    plt.title('Sinusoidal crosscut CORE aec')
+    plt.title('Sinusoidal Crosscut Core AEC')
     plt.xlabel('Fingeprint number', fontsize='small', figure=sin_s_core)
     plt.ylabel('Sinusoidal deviance', fontsize='small', figure=sin_s_core)
     plt.axhline(y=0, color='r', linestyle='-')
@@ -419,14 +468,14 @@ def main(args: argparse.ArgumentParser) -> None:
 
             total_displayed += 1
 
-        rating_array = report[quality_class]['sin_s']
+        rating_array = report[quality_class]['thick_core']
         rating_len = len(rating_array)
 
         if rating_len != 0:
             plt.plot(np.arange(rating_len) + total_displayed - rating_len, np.full(rating_len,
                      np.mean(rating_array)), color='black', linestyle='--', label='Mean value')
 
-    plt.title('Thickness CORE aec')
+    plt.title('Thickness Core AEC')
     plt.xlabel('Fingeprint number', fontsize='small', figure=thick_core)
     plt.ylabel('Sinusoidal deviance', fontsize='small', figure=thick_core)
     plt.axhline(y=0, color='r', linestyle='-')
@@ -437,6 +486,166 @@ def main(args: argparse.ArgumentParser) -> None:
     plt.close()
 
     figures['thickness_core_rating'] = thick_core
+
+    # --------------------------------------------------------------------
+
+    sin_s_gray: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
+
+    total_displayed = 0
+
+    for quality_class in report:
+        for rating in report[quality_class]['sin_s_gray']:
+            color = 'black'
+            if quality_class == Classification.GOOD:
+                color = 'green'
+            elif quality_class == Classification.BAD:
+                color = 'orange'
+            elif quality_class == Classification.UGLY:
+                color = 'red'
+
+            plt.plot(total_displayed, rating, marker="o",
+                     color=color, figure=sin_s_gray)
+
+            total_displayed += 1
+
+        rating_array = report[quality_class]['sin_s_gray']
+        rating_len = len(rating_array)
+
+        if rating_len != 0:
+            plt.plot(np.arange(rating_len) + total_displayed - rating_len, np.full(rating_len,
+                     np.mean(rating_array)), color='black', linestyle='--', label='Mean value')
+
+    plt.title('Sinusoidal Crosscut Grayscale')
+    plt.xlabel('Fingeprint number', fontsize='small', figure=sin_s_gray)
+    plt.ylabel('Sinusoidal deviance', fontsize='small', figure=sin_s_gray)
+    plt.axhline(y=0, color='r', linestyle='-')
+    markers = [plt.Line2D([0, 0], [0, 0], color=color, marker='o', linestyle='')
+               for color in color_legend.values()]
+    plt.legend(markers, color_legend.keys(), numpoints=1, fontsize='small')
+    plt.rc('font', size=14)
+    plt.close()
+
+    figures['sinusoidal_similarity_rating_gray'] = sin_s_gray
+
+    # --------------------------------------------------------------------
+
+    thick_gray: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
+
+    total_displayed = 0
+
+    for quality_class in report:
+        for rating in report[quality_class]['thick_gray']:
+            color = 'black'
+            if quality_class == Classification.GOOD:
+                color = 'green'
+            elif quality_class == Classification.BAD:
+                color = 'orange'
+            elif quality_class == Classification.UGLY:
+                color = 'red'
+
+            plt.plot(total_displayed, rating, marker="o",
+                     color=color, figure=thick_gray)
+
+            total_displayed += 1
+
+        rating_array = report[quality_class]['thick_gray']
+        rating_len = len(rating_array)
+
+        if rating_len != 0:
+            plt.plot(np.arange(rating_len) + total_displayed - rating_len, np.full(rating_len,
+                     np.mean(rating_array)), color='black', linestyle='--', label='Mean value')
+
+    plt.title('Thickness Grayscale')
+    plt.xlabel('Fingeprint number', fontsize='small', figure=thick_gray)
+    plt.ylabel('Sinusoidal deviance', fontsize='small', figure=thick_gray)
+    plt.axhline(y=0, color='r', linestyle='-')
+    markers = [plt.Line2D([0, 0], [0, 0], color=color, marker='o', linestyle='')
+               for color in color_legend.values()]
+    plt.legend(markers, color_legend.keys(), numpoints=1, fontsize='small')
+    plt.rc('font', size=14)
+    plt.close()
+
+    figures['thickness_rating_gray'] = thick_gray
+
+    # --------------------------------------------------------------------
+
+    sin_s_core_gray: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
+
+    total_displayed = 0
+
+    for quality_class in report:
+        for rating in report[quality_class]['sin_s_core_gray']:
+            color = 'black'
+            if quality_class == Classification.GOOD:
+                color = 'green'
+            elif quality_class == Classification.BAD:
+                color = 'orange'
+            elif quality_class == Classification.UGLY:
+                color = 'red'
+
+            plt.plot(total_displayed, rating, marker="o",
+                     color=color, figure=sin_s_core_gray)
+
+            total_displayed += 1
+
+        rating_array = report[quality_class]['sin_s_core_gray']
+        rating_len = len(rating_array)
+
+        if rating_len != 0:
+            plt.plot(np.arange(rating_len) + total_displayed - rating_len, np.full(rating_len,
+                     np.mean(rating_array)), color='black', linestyle='--', label='Mean value')
+
+    plt.title('Sinusoidal Crosscut Core Grayscale')
+    plt.xlabel('Fingeprint number', fontsize='small', figure=sin_s_core_gray)
+    plt.ylabel('Sinusoidal deviance', fontsize='small', figure=sin_s_core_gray)
+    plt.axhline(y=0, color='r', linestyle='-')
+    markers = [plt.Line2D([0, 0], [0, 0], color=color, marker='o', linestyle='')
+               for color in color_legend.values()]
+    plt.legend(markers, color_legend.keys(), numpoints=1, fontsize='small')
+    plt.rc('font', size=14)
+    plt.close()
+
+    figures['sinusoidal_similarity_core_rating_gray'] = sin_s_core_gray
+
+    # --------------------------------------------------------------------
+
+    thick_core_gray: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
+
+    total_displayed = 0
+
+    for quality_class in report:
+        for rating in report[quality_class]['thick_core_gray']:
+            color = 'black'
+            if quality_class == Classification.GOOD:
+                color = 'green'
+            elif quality_class == Classification.BAD:
+                color = 'orange'
+            elif quality_class == Classification.UGLY:
+                color = 'red'
+
+            plt.plot(total_displayed, rating, marker="o",
+                     color=color, figure=thick_core_gray)
+
+            total_displayed += 1
+
+        rating_array = report[quality_class]['thick_core_gray']
+        rating_len = len(rating_array)
+
+        if rating_len != 0:
+            plt.plot(np.arange(rating_len) + total_displayed - rating_len, np.full(rating_len,
+                     np.mean(rating_array)), color='black', linestyle='--', label='Mean value')
+
+    plt.title('Thickness Core Grayscale')
+    plt.xlabel('Fingeprint number', fontsize='small', figure=thick_core_gray)
+    plt.ylabel('Sinusoidal deviance', fontsize='small', figure=thick_core_gray)
+    plt.axhline(y=0, color='r', linestyle='-')
+    markers = [plt.Line2D([0, 0], [0, 0], color=color, marker='o', linestyle='')
+               for color in color_legend.values()]
+    plt.legend(markers, color_legend.keys(), numpoints=1, fontsize='small')
+    plt.rc('font', size=14)
+    plt.close()
+
+    figures['thickness_core_rating_gray'] = thick_core_gray
 
     save_fig(figures, output_path, '.jpeg')
 
