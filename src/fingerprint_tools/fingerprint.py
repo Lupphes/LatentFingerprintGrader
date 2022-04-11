@@ -161,7 +161,7 @@ class Fingerprint:
 
         logging.info(f'Grading {self.name} finished!')
 
-    def grade_minutiae_points(self, name='default', thresh=2) -> None:
+    def grade_minutiae_points(self, name='default', thresh=1) -> None:
         if 0 > thresh or thresh > 3:
             raise ArrgumentError()
 
@@ -324,7 +324,6 @@ class Fingerprint:
                 'axis': []
             }
         }
-        # TODO: Thinking about count valleys instead and -1, idea
         count = 0
         is_on_ridge = False
         for x in range(0, row, self.block_size):
@@ -661,7 +660,6 @@ class Fingerprint:
                     on_ridge = False
             return display_thickness
 
-        # TODO: Check thickness DPI but should be alright
         average_thickness = 0.033  # mm
 
         # Normalization
@@ -727,7 +725,6 @@ class Fingerprint:
             ridges_list = np.split(optimalized_thickness[ridges_separated],
                                    np.where(np.diff(ridges_separated) != 1)[0]+1)
             # Transform the pixels into readable format
-            # TODO: Evaluate if PPI is good
             for item in ridges_list:
                 Th = base * len(item)
                 Dth = (Th/average_thickness - 1) * 100
@@ -818,6 +815,7 @@ class Fingerprint:
 
     def get_perpendicular(self, cx: int, cy: int, name: str, angle_base=1):
         # TODO: Optimalisation (read in 4 directions) - rotate just till 90
+        # or just use scimage function for line rotation
         def rotate_image(image: Image, angle: int, center_col: int, center_row: int) -> Tuple[Image, int, int]:
             image_arr = image.image
             row, col = image_arr.shape

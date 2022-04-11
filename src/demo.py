@@ -31,7 +31,7 @@ def argument_parse() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         '-s', '--sdir', type=Path,
-        help='Path to the destination folder, where the source images should be.', required=True
+        help='Path to the input folder, where the source images should be.', required=True
     )
     parser.add_argument(
         '-d', '--ddir', type=Path, help='Path to the destination folder, where the script will store fingerprint images and logs.'

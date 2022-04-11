@@ -143,88 +143,14 @@ class LatentExtractionModel:
         images['aec_mask'] = aec_img * mask
 
         # --------------------------------------------------------------------
-
-        minutiae_sets = []
-
-        stft_mnt = self.minu_model[0].extract_minutiae(
-            stft_img, minu_thr=0.05
-        )
-        gaus_stft_mnt = self.minu_model[0].extract_minutiae(
-            gaus_stft_img, minu_thr=0.1
-        )
-        aec_mnt = self.minu_model[1].extract_minutiae(
-            aec_img, minu_thr=0.25
-        )
-        aec_mnt = self.remove_spurious_minutiae(aec_mnt, mask)
-
-        minutiae_sets.append(stft_mnt)
-        minutiae_sets.append(gaus_stft_mnt)
-        minutiae_sets.append(aec_mnt)
-
-        minutiae['stft'] = stft_mnt
-        minutiae['gaus_stft'] = gaus_stft_mnt
-        minutiae['aec'] = aec_mnt
-
-        if show_minutiae:
-            figures['stft'] = show_minutiae_sets(
-                stft_img, [input_minu, stft_mnt], mask=None)
-            figures['gaus_stft'] = show_minutiae_sets(
-                gaus_stft_img, [input_minu, gaus_stft_mnt], mask=None)
-            figures['aec'] = show_minutiae_sets(
-                aec_img, [input_minu, aec_mnt], mask=mask)
-
-        # --------------------------------------------------------------------
         # Enhance gaussian contrast image
 
         gabor_gaus_img = gabor_filtering_pixel2(
             gaus_img, dir_map_aec + math.pi / 2,
             fre_map_aec, mask=np.ones((h, w)), block_size=16, angle_inc=3
         )
+
         images['gabor_gaus'] = gabor_gaus_img
-
-        gabor_gaus_mnt = self.minu_model[1].extract_minutiae(
-            gabor_gaus_img, minu_thr=0.25
-        )
-        gabor_gaus_mnt = self.remove_spurious_minutiae(
-            gabor_gaus_mnt, mask)
-
-        minutiae_sets.append(gabor_gaus_mnt)
-
-        minutiae['gabor_gaus'] = gabor_gaus_mnt
-
-        if show_minutiae:
-            figures['gabor_gaus'] = show_minutiae_sets(
-                gabor_gaus_img, [input_minu, gabor_gaus_mnt], mask=mask
-            )
-
-        # --------------------------------------------------------------------
-        # Enhance gaussian contrast image CENATAV
-
-        gfilter = LogGaborFilter(
-            dir_map_aec + math.pi / 2, fre_map_aec, mask=np.ones((h, w)))
-        log_gabor_gaus_img, thr = gfilter.apply(gaus_img)
-
-        images['log_gabor_gaus'] = log_gabor_gaus_img
-
-        log_gabor_gaus_bin = (log_gabor_gaus_img >= thr).astype(np.uint8) * 255
-        log_gabor_gaus_bin[mask == 0] = 0
-        images['log_gabor_gaus_bin'] = log_gabor_gaus_bin
-
-        # --------------------------------------------------------------------
-        # Extracting minutiae from the enhanced contrast gaussian image CENATAV
-
-        log_gabor_gaus_mnt = self.minu_model[1].extract_minutiae(
-            log_gabor_gaus_img, minu_thr=0.25)
-        log_gabor_gaus_mnt = self.remove_spurious_minutiae(
-            log_gabor_gaus_mnt, mask)
-
-        minutiae_sets.append(log_gabor_gaus_mnt)
-
-        if show_minutiae:
-            figures['log_gabor_gaus'] = show_minutiae_sets(
-                log_gabor_gaus_img, [input_minu, log_gabor_gaus_mnt], mask=mask)
-
-        minutiae['log_gabor_gaus'] = log_gabor_gaus_mnt
 
         # --------------------------------------------------------------------
         # Enhanced texture image
@@ -236,42 +162,121 @@ class LatentExtractionModel:
 
         images['gabor_texture'] = gabor_texture_img
 
+        # --------------------------------------------------------------------
+
+        minutiae_sets = []
+
+        stft_mnt = self.minu_model[0].extract_minutiae(
+            stft_img, minu_thr=0.05
+        )
+        gaus_stft_mnt = self.minu_model[0].extract_minutiae(
+            gaus_stft_img, minu_thr=0.1
+        )
+
+        aec_mnt = self.minu_model[1].extract_minutiae(
+            aec_img, minu_thr=0.25
+        )
+        aec_mnt = self.remove_spurious_minutiae(aec_mnt, mask)
+
+        gabor_gaus_mnt = self.minu_model[1].extract_minutiae(
+            gabor_gaus_img, minu_thr=0.25
+        )
+        gabor_gaus_mnt = self.remove_spurious_minutiae(
+            gabor_gaus_mnt, mask
+        )
+
         gabor_texture_mnt = self.minu_model[1].extract_minutiae(
-            gabor_texture_img, minu_thr=0.25)
+            gabor_texture_img, minu_thr=0.25
+        )
         gabor_texture_mnt = self.remove_spurious_minutiae(
-            gabor_texture_mnt, mask)
+            gabor_texture_mnt, mask
+        )
+
+        minutiae_sets.append(stft_mnt)
+        minutiae_sets.append(gaus_stft_mnt)
+        minutiae_sets.append(aec_mnt)
+
+        minutiae_sets.append(gabor_gaus_mnt)
 
         minutiae_sets.append(gabor_texture_mnt)
 
-        if show_minutiae:
-            figures['gabor_texture'] = show_minutiae_sets(
-                gabor_texture_img, [input_minu, gabor_texture_mnt], mask=mask)
+        minutiae['stft'] = stft_mnt
+        minutiae['gaus_stft'] = gaus_stft_mnt
+        minutiae['aec'] = aec_mnt
 
+        minutiae['gabor_gaus'] = gabor_gaus_mnt
         minutiae['gabor_texture'] = gabor_texture_mnt
+
+        if show_minutiae:
+            figures['stft'] = show_minutiae_sets(
+                stft_img, [input_minu, stft_mnt], mask=None)
+            figures['gaus_stft'] = show_minutiae_sets(
+                gaus_stft_img, [input_minu, gaus_stft_mnt], mask=None)
+            figures['aec'] = show_minutiae_sets(
+                aec_img, [input_minu, aec_mnt], mask=mask)
+
+            figures['gabor_gaus'] = show_minutiae_sets(
+                gabor_gaus_img, [input_minu, gabor_gaus_mnt], mask=mask
+            )
+
+            figures['gabor_texture'] = show_minutiae_sets(
+                gabor_texture_img, [input_minu, gabor_texture_mnt], mask=mask
+            )
+
+        # --------------------------------------------------------------------
+        # Enhance gaussian contrast image CENATAV
+
+        gfilter = LogGaborFilter(
+            dir_map_aec + math.pi / 2, fre_map_aec, mask=np.ones((h, w))
+        )
+        loggabor_gaus_img, thr = gfilter.apply(gaus_img)
+
+        loggabor_gaus_bin = (loggabor_gaus_img >= thr).astype(np.uint8) * 255
+        loggabor_gaus_bin[mask == 0] = 0
 
         # --------------------------------------------------------------------
         # Enhance texture image CENATAV
 
-        log_gabor_texture_img, thr = gfilter.apply(texture_img)
+        loggabor_texture_img, thr = gfilter.apply(texture_img)
 
-        images['log_gabor_texture'] = log_gabor_texture_img
+        loggabor_texture_bin = (loggabor_texture_img >=
+                                thr).astype(np.uint8) * 255
+        loggabor_texture_bin[mask == 0] = 0
 
-        gabor_texture_bin = (log_gabor_texture_img >=
-                             thr).astype(np.uint8) * 255
-        gabor_texture_bin[mask == 0] = 0
-        images['gabor_texture_bin'] = gabor_texture_bin
+        # --------------------------------------------------------------------
 
-        log_gabor_texture_mnt = self.minu_model[1].extract_minutiae(
-            log_gabor_texture_img, minu_thr=0.25)
-        log_gabor_texture_mnt = self.remove_spurious_minutiae(
-            log_gabor_texture_mnt, mask)
-        minutiae_sets.append(log_gabor_texture_mnt)
+        loggabor_gaus_mnt = self.minu_model[1].extract_minutiae(
+            loggabor_gaus_img, minu_thr=0.25
+        )
+        loggabor_gaus_mnt = self.remove_spurious_minutiae(
+            loggabor_gaus_mnt, mask
+        )
+
+        loggabor_texture_mnt = self.minu_model[1].extract_minutiae(
+            loggabor_texture_img, minu_thr=0.25
+        )
+        loggabor_texture_mnt = self.remove_spurious_minutiae(
+            loggabor_texture_mnt, mask
+        )
+
+        # minutiae_sets.append(loggabor_gaus_mnt)
+        # minutiae_sets.append(loggabor_texture_mnt)
+
+        minutiae['loggabor_gaus'] = loggabor_gaus_mnt
+        minutiae['loggabor_texture'] = loggabor_texture_mnt
+
+        images['loggabor_gaus'] = loggabor_gaus_img
+        images['loggabor_gaus_bin'] = loggabor_gaus_bin
+
+        images['loggabor_texture'] = loggabor_texture_img
+        images['loggabor_texture_bin'] = loggabor_texture_bin
 
         if show_minutiae:
-            figures['log_gabor_texture'] = show_minutiae_sets(
-                log_gabor_texture_img, [input_minu, log_gabor_texture_mnt], mask=mask)
+            figures['loggabor_gaus'] = show_minutiae_sets(
+                loggabor_gaus_img, [input_minu, loggabor_gaus_mnt], mask=mask)
 
-        minutiae['log_gabor_texture'] = log_gabor_texture_mnt
+            figures['loggabor_texture'] = show_minutiae_sets(
+                loggabor_texture_img, [input_minu, loggabor_texture_mnt], mask=mask)
 
         # --------------------------------------------------------------------
 
@@ -306,7 +311,7 @@ class LatentExtractionModel:
 
         logging.info('Time for minutiae extraction: %f' % (end - start))
 
-        return [mnt1, mnt2, mnt3, mnt4], images['mask'] * 255, images['aec'].astype(np.uint8), images['gabor_texture_bin']
+        return [mnt1, mnt2, mnt3, mnt4], images['mask'] * 255, images['aec'].astype(np.uint8), images['loggabor_texture_bin']
 
     def generate_images(self, root_name: Path, ext: str, images: Dict[str, npt.NDArray], minutiae: Dict[str, npt.NDArray], figures: Dict[str, plt.Figure]) -> None:
         for item in images:

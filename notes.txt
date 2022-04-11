@@ -71,3 +71,20 @@ Th = 2.54/R_DPI  * N_PIX
 
 
 pricny k jednotlivym linkam otisku
+
+
+
+
+12.04 Co chci probrat
+# ----------------------------------------------------------------
+
+
+Ukazat vysledky v Google drive, pependicular line, jednotlive grafy
+Ukazat jak beru minutiae points v dokumentu a jak pouzivam neuronky
+Vysvetlit contrast a predvest vysledky
+
+Zeptat se na thickness a sinusoidal u AEC, jestli to nekazi vysledky, popripade CLAHE image
+Zapis minutuae points do JSON
+Generovani syntetickych otisku - do bakalarky misto origo, je znamej nejakej tool?
+
+Ukazat vysledky test souboru? Ma cenu tohle davat do prace?
