@@ -7,6 +7,9 @@ import json
 from enum import Enum
 import numpy as np
 from matplotlib import pyplot as plt
+import pandas as pd
+
+
 from typing import Dict
 
 
@@ -37,11 +40,13 @@ class Classification(str, Enum):
     UNKNOWN = 'UNK'
 
 
-def report2dict(rating, report, quatity, rmse, n_rig, sin_s, thick, sin_s_core, thick_core, sin_s_gray, thick_gray, sin_s_core_gray, thick_core_gray):
+def report2dict(rating, report, quatity, rmse, michelson, n_rig, sin_s, thick, sin_s_core, thick_core, sin_s_gray, thick_gray, sin_s_core_gray, thick_core_gray):
     if quatity != None:
         report[rating]['min_points'].append(quatity)
     if rmse != None:
         report[rating]['rmse'].append(rmse)
+    if rmse != None:
+        report[rating]['michelson'].append(michelson)
     if n_rig != None:
         report[rating]['n_rig'].append(n_rig)
     if sin_s != None:
@@ -81,6 +86,7 @@ def main(args: argparse.ArgumentParser) -> None:
         Classification.GOOD: {
             'min_points': [],
             'rmse': [],
+            'michelson': [],
             'n_rig': [],
             'sin_s': [],
             'thick': [],
@@ -94,6 +100,7 @@ def main(args: argparse.ArgumentParser) -> None:
         Classification.BAD: {
             'min_points': [],
             'rmse': [],
+            'michelson': [],
             'n_rig': [],
             'sin_s': [],
             'thick': [],
@@ -107,6 +114,7 @@ def main(args: argparse.ArgumentParser) -> None:
         Classification.UGLY: {
             'min_points': [],
             'rmse': [],
+            'michelson': [],
             'n_rig': [],
             'sin_s': [],
             'thick': [],
@@ -120,6 +128,7 @@ def main(args: argparse.ArgumentParser) -> None:
         Classification.UNKNOWN: {
             'min_points': [],
             'rmse': [],
+            'michelson': [],
             'n_rig': [],
             'sin_s': [],
             'thick': [],
@@ -132,6 +141,12 @@ def main(args: argparse.ArgumentParser) -> None:
         },
     }
 
+    df = pd.read_json(log_file_path, orient='index')
+    df_nested_list = pd.json_normalize(df['minutuae_points'])
+    print(df)
+    exit(1)
+
+
     with open(log_file_path, 'r+') as file:
         file_data = json.load(file)
         number_of_prints = 0
@@ -140,10 +155,12 @@ def main(args: argparse.ArgumentParser) -> None:
             quality_class = print_name[:1]
 
             quatity = file_data[print_name]['minutuae_points']['quantity']
+
             if not 'contrast' in file_data[print_name]:
                 rmse = None
             else:
                 rmse = file_data[print_name]['contrast']['rmse']
+                michelson = file_data[print_name]['contrast']['michelson_contrast_pct']
 
             if not 'papilary_ridges' in file_data[print_name]:
                 n_rig = None
@@ -202,10 +219,8 @@ def main(args: argparse.ArgumentParser) -> None:
                     thick_core_gray = np.mean(
                         dict_thick['gray_core']['thickness_difference'])
 
-            report2dict(quality_class, report, quatity, rmse,
+            report2dict(quality_class, report, quatity, rmse, michelson,
                         n_rig, sin_s, thick, sin_s_core, thick_core, sin_s_gray, thick_gray, sin_s_core_gray, thick_core_gray)
-
-    generateJSON(report=report, output_path=output_path)
 
     color_legend = {'Good': u'green', 'Bad': u'orange',
                     'Ugly': u'red', 'Unknown': u'black'}
@@ -287,6 +302,45 @@ def main(args: argparse.ArgumentParser) -> None:
     plt.rc('font', size=14)
     plt.close()
     figures['rmse_rating'] = rmse
+
+    # --------------------------------------------------------------------
+    michelson: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
+
+    total_displayed = 0
+    rating_array = []
+
+    for quality_class in report:
+        for rating in report[quality_class]['michelson']:
+            color = 'black'
+            if quality_class == Classification.GOOD:
+                color = 'green'
+            elif quality_class == Classification.BAD:
+                color = 'orange'
+            elif quality_class == Classification.UGLY:
+                color = 'red'
+
+            plt.plot(total_displayed, rating, marker="o",
+                     color=color, figure=michelson)
+
+            total_displayed += 1
+
+        rating_array += report[quality_class]['michelson']
+
+    rating_len = len(rating_array)
+
+    z = np.polyfit(np.arange(rating_len), rating_array, 1)
+    p = np.poly1d(z)
+    plt.plot(np.arange(rating_len), p(np.arange(rating_len)), "r--")
+
+    plt.title('Michelson\'s contrast')
+    plt.xlabel('Fingeprint number', fontsize='small', figure=michelson)
+    plt.ylabel('Contrast', fontsize='small', figure=michelson)
+    markers = [plt.Line2D([0, 0], [0, 0], color=color, marker='o', linestyle='')
+               for color in color_legend.values()]
+    plt.legend(markers, color_legend.keys(), numpoints=1, fontsize='small')
+    plt.rc('font', size=14)
+    plt.close()
+    figures['michelson_rating'] = michelson
 
     # --------------------------------------------------------------------
     n_rig: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
