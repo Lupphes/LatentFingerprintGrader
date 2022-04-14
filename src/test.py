@@ -3,14 +3,23 @@
 
 import argparse
 from pathlib import Path
-import json
-from enum import Enum
+from enum import IntEnum
 import numpy as np
 from matplotlib import pyplot as plt
 import pandas as pd
-
+from scipy import stats
 
 from typing import Dict
+
+
+class Classification(IntEnum):
+    """
+    Classification by the SD27 dataset
+    """
+    GOOD = 0,
+    BAD = 1,
+    UGLY = 2,
+    UNKNOWN = 3,
 
 
 def argument_parse() -> argparse.ArgumentParser:
@@ -33,673 +42,411 @@ def argument_parse() -> argparse.ArgumentParser:
     return parser.parse_args()
 
 
-class Classification(str, Enum):
-    GOOD = 'G',
-    BAD = 'B',
-    UGLY = 'U',
-    UNKNOWN = 'UNK'
+def json2pandas(log_file_path: Path) -> pd.DataFrame:
+    """
+    Transforms the data from JSON to pandas and makes it usable 
+    for analysis
+    """
+
+    df = pd.read_json(log_file_path, orient='index')
+    df.reset_index(inplace=True)
+    df = df.rename(columns={'index': 'image'})
+
+    df['minutuae_points'] = pd.json_normalize(
+        df['minutuae_points'])['quantity']
+    df['papilary_ridges'] = pd.json_normalize(
+        df['papilary_ridges'])['total_mean']
+    papillary_crosscut = pd.json_normalize(
+        df['papillary_crosscut']).dropna()
+    contrast = pd.json_normalize(df['contrast'])
+
+    df['rmse'] = contrast['rmse']
+    df['michelson'] = contrast['michelson_contrast_pct']
+
+    df['sin_s'] = papillary_crosscut['sinusoidal_shape.aec.D_D_ridges']
+    df['sin_s'] = df['sin_s'][df['sin_s'].map(bool)].dropna()
+    df['sin_s'] = [np.mean(x) for x in df['sin_s'].to_numpy()]
+
+    df['sin_s_core'] = papillary_crosscut['sinusoidal_shape.aec_core.D_D_ridges']
+    df['sin_s_core'] = df['sin_s_core'][df['sin_s_core'].map(bool)].dropna()
+    df['sin_s_core'] = [np.mean(x) for x in df['sin_s_core'].to_numpy()]
+
+    df['sin_s_gray'] = papillary_crosscut['sinusoidal_shape.gray.D_D_ridges']
+    df['sin_s_gray'] = df['sin_s_gray'][df['sin_s_gray'].map(bool)].dropna()
+    df['sin_s_gray'] = [np.mean(x) for x in df['sin_s_gray'].to_numpy()]
+
+    df['sin_s_core_gray'] = papillary_crosscut['sinusoidal_shape.gray_core.D_D_ridges']
+    df['sin_s_core_gray'] = df['sin_s_core_gray'][df['sin_s_core_gray'].map(
+        bool)].dropna()
+    df['sin_s_core_gray'] = [np.mean(x)
+                             for x in df['sin_s_core_gray'].to_numpy()]
+
+    df['thick'] = papillary_crosscut['thickness.aec.thickness_difference']
+    df['thick'] = df['thick'][df['thick'].map(bool)].dropna()
+    df['thick'] = [np.mean(x)for x in df['thick'].to_numpy()]
+
+    df['thick_core'] = papillary_crosscut['thickness.aec_core.thickness_difference']
+    df['thick_core'] = df['thick_core'][df['thick_core'].map(bool)].dropna()
+    df['thick_core'] = [np.mean(x) for x in df['thick_core'].to_numpy()]
+
+    df['thick_gray'] = papillary_crosscut['thickness.gray.thickness_difference']
+    df['thick_gray'] = df['thick_gray'][df['thick_gray'].map(bool)].dropna()
+    df['thick_gray'] = [np.mean(x) for x in df['thick_gray'].to_numpy()]
+
+    df['thick_core_gray'] = papillary_crosscut['thickness.gray_core.thickness_difference']
+    df['thick_core_gray'] = df['thick_core_gray'][df['thick_core_gray'].map(
+        bool)].dropna()
+    df['thick_core_gray'] = [np.mean(x)
+                             for x in df['thick_core_gray'].to_numpy()]
+
+    df = df.drop(labels='papillary_crosscut', axis=1)
+    df = df.drop(labels='contrast', axis=1)
+    df = df.drop(labels='error', axis=1)
+
+    image_class = []
+    for print_name in df['image']:
+        quality_class = Classification.UNKNOWN
+        letter = print_name[:1]
+        if letter == 'G':
+            quality_class = Classification.GOOD
+        elif letter == 'B':
+            quality_class = Classification.BAD
+        elif letter == 'U':
+            quality_class = Classification.UGLY
+        image_class.append(quality_class)
+
+    df['image_class'] = image_class
+
+    conditions = [
+        (df['image_class'] == Classification.GOOD),
+        (df['image_class'] == Classification.BAD),
+        (df['image_class'] == Classification.UGLY),
+        (df['image_class'] == Classification.UNKNOWN)
+    ]
+
+    df['image_class']
+
+    values = ['green', 'orange', 'red', 'black']
+    df['color'] = np.select(conditions, values)
+
+    df = df.sort_values('image_class')
+    df.reset_index(inplace=True)
+
+    return df
 
 
-def report2dict(rating, report, quatity, rmse, michelson, n_rig, sin_s, thick, sin_s_core, thick_core, sin_s_gray, thick_gray, sin_s_core_gray, thick_core_gray):
-    if quatity != None:
-        report[rating]['min_points'].append(quatity)
-    if rmse != None:
-        report[rating]['rmse'].append(rmse)
-    if rmse != None:
-        report[rating]['michelson'].append(michelson)
-    if n_rig != None:
-        report[rating]['n_rig'].append(n_rig)
-    if sin_s != None:
-        report[rating]['sin_s'].append(sin_s)
-    if thick != None:
-        report[rating]['thick'].append(thick)
-    if sin_s_core != None:
-        report[rating]['sin_s_core'].append(sin_s_core)
-    if thick_core != None:
-        report[rating]['thick_core'].append(thick_core)
-    if sin_s_gray != None:
-        report[rating]['sin_s_gray'].append(sin_s_gray)
-    if thick_gray != None:
-        report[rating]['thick_gray'].append(thick_gray)
-    if sin_s_core_gray != None:
-        report[rating]['sin_s_core_gray'].append(sin_s_core_gray)
-    if thick_core_gray != None:
-        report[rating]['thick_core_gray'].append(thick_core_gray)
+def plot_trendline(rating_array: pd.DataFrame, figure: plt.Figure) -> None:
+    """
+    Plot trendline based on the least squares polynomial fit 
+    of the first degree
+    """
+    rating_array = rating_array.dropna()
+    rating_len = len(rating_array)
+    z = np.polyfit(np.arange(rating_len), rating_array, 1)
+    p = np.poly1d(z)
+    plt.plot(np.arange(rating_len), p(np.arange(rating_len)),
+             "r--", figure=figure, label="Trendline")
 
 
-def generateJSON(report, output_path, filename='log_test.json'):
-    with open(output_path / filename, 'w') as file:
-        json.dump(report, file, indent=4)
+def plot_metadata(title, x_label: str, y_label: str, figure: plt.Figure) -> None:
+    """
+    Data for the plot to generate nice charts
+    """
+
+    color_legend = {'Good': u'green', 'Bad': u'orange',
+                    'Ugly': u'red'}  # , 'Unknown': u'black'
+
+    plt.title(title)
+    plt.xlabel(x_label, fontsize='small', figure=figure)
+    plt.ylabel(y_label, fontsize='small', figure=figure)
+    markers = [plt.Line2D([0, 0], [0, 0], color=color, marker='o', linestyle='')
+               for color in color_legend.values()]
+    plt.legend(markers, color_legend.keys(), numpoints=1, fontsize='small')
+    plt.rc('font', size=14)
+    plt.close()
+
+
+def plot_zero_line(str_dev: pd.DataFrame, value: str, figure: plt.Figure) -> None:
+    """
+    Plots 3 lines based on the asserted quality by the SD27 dataset
+    They are calculated with their mean value
+    """
+
+    good_df: pd.DataFrame = str_dev.loc[str_dev['image_class']
+                                        == Classification.GOOD]
+    plt.plot(np.arange(len(good_df)), np.full(len(good_df), good_df[value].mean()),
+             color='black', linestyle='--', figure=figure)
+
+    bad_df: pd.DataFrame = str_dev.loc[str_dev['image_class']
+                                       == Classification.BAD]
+    plt.plot(np.arange(len(bad_df)) + len(good_df), np.full(len(bad_df), bad_df[value].mean()),
+             color='black', linestyle='--', figure=figure)
+
+    ugly_df: pd.DataFrame = str_dev.loc[str_dev['image_class']
+                                        == Classification.UGLY]
+    plt.plot(np.arange(len(ugly_df)) + len(good_df) + len(bad_df), np.full(len(ugly_df), ugly_df[value].mean()),
+             color='black', linestyle='--', label='Mean value', figure=figure)
+
+
+def standard_deviation(df: pd.DataFrame, rating_array: pd.DataFrame) -> pd.DataFrame:
+    """
+    Calculates standard deviation of 2 (2.3% - 97,7%)
+    In total about 95% values are kept and 5% thrown
+    """
+    df: pd.DataFrame = df[np.abs(
+        stats.zscore(rating_array, nan_policy='omit')) < 2]
+    return df
 
 
 def save_fig(dictionary: Dict, path: Path, ext: str) -> None:
+    """
+    Saves figures stored in the dictionary
+    """
+
     for variant in dictionary:
         fname = path / f"{variant}{ext}"
         dictionary[variant].savefig(fname)
 
 
 def main(args: argparse.ArgumentParser) -> None:
+    """
+    Simple script for generating plots from log.json
+    As the SD27 dataset was graded, we can compare those two
+    gradings with this script
+    """
+
     log_file_path: Path = args.sdir
     output_path: Path = args.ddir
 
-    report = {
-        Classification.GOOD: {
-            'min_points': [],
-            'rmse': [],
-            'michelson': [],
-            'n_rig': [],
-            'sin_s': [],
-            'thick': [],
-            'sin_s_core': [],
-            'thick_core': [],
-            'sin_s_gray': [],
-            'thick_gray': [],
-            'sin_s_core_gray': [],
-            'thick_core_gray': []
-        },
-        Classification.BAD: {
-            'min_points': [],
-            'rmse': [],
-            'michelson': [],
-            'n_rig': [],
-            'sin_s': [],
-            'thick': [],
-            'sin_s_core': [],
-            'thick_core': [],
-            'sin_s_gray': [],
-            'thick_gray': [],
-            'sin_s_core_gray': [],
-            'thick_core_gray': []
-        },
-        Classification.UGLY: {
-            'min_points': [],
-            'rmse': [],
-            'michelson': [],
-            'n_rig': [],
-            'sin_s': [],
-            'thick': [],
-            'sin_s_core': [],
-            'thick_core': [],
-            'sin_s_gray': [],
-            'thick_gray': [],
-            'sin_s_core_gray': [],
-            'thick_core_gray': []
-        },
-        Classification.UNKNOWN: {
-            'min_points': [],
-            'rmse': [],
-            'michelson': [],
-            'n_rig': [],
-            'sin_s': [],
-            'thick': [],
-            'sin_s_core': [],
-            'thick_core': [],
-            'sin_s_gray': [],
-            'thick_gray': [],
-            'sin_s_core_gray': [],
-            'thick_core_gray': []
-        },
-    }
+    df = json2pandas(log_file_path)
 
-    df = pd.read_json(log_file_path, orient='index')
-    df_nested_list = pd.json_normalize(df['minutuae_points'])
-    print(df)
-    exit(1)
-
-
-    with open(log_file_path, 'r+') as file:
-        file_data = json.load(file)
-        number_of_prints = 0
-        for print_name in file_data:
-            number_of_prints += 1
-            quality_class = print_name[:1]
-
-            quatity = file_data[print_name]['minutuae_points']['quantity']
-
-            if not 'contrast' in file_data[print_name]:
-                rmse = None
-            else:
-                rmse = file_data[print_name]['contrast']['rmse']
-                michelson = file_data[print_name]['contrast']['michelson_contrast_pct']
-
-            if not 'papilary_ridges' in file_data[print_name]:
-                n_rig = None
-            else:
-                n_rig = file_data[print_name]['papilary_ridges']['total_mean']
-
-            if not 'papillary_crosscut' in file_data[print_name]:
-                sin_s = None
-                thick = None
-                sin_s_gray = None
-                thick_gray = None
-            else:
-                dict_sin = file_data[print_name]['papillary_crosscut']['sinusoidal_shape']
-                dict_thick = file_data[print_name]['papillary_crosscut']['thickness']
-                if not 'aec' in dict_sin or len(dict_sin['aec']['D_D_ridges']) == 0:
-                    sin_s = None
-                else:
-                    sin_s = np.mean(dict_sin['aec']['D_D_ridges'])
-
-                if not 'aec_core' in dict_sin or len(dict_sin['aec_core']['D_D_ridges']) == 0:
-                    sin_s_core = None
-                else:
-                    sin_s_core = np.mean(dict_sin['aec_core']['D_D_ridges'])
-
-                if not 'aec' in dict_thick or len(dict_thick['aec']['thickness_difference']) == 0:
-                    thick = None
-                else:
-                    thick = np.mean(dict_thick['aec']['thickness_difference'])
-
-                if not 'aec_core' in dict_thick or len(dict_thick['aec_core']['thickness_difference']) == 0:
-                    thick_core = None
-                else:
-                    thick_core = np.mean(
-                        dict_thick['aec_core']['thickness_difference'])
-
-                if not 'gray' in dict_sin or len(dict_sin['gray']['D_D_ridges']) == 0:
-                    sin_s_gray = None
-                else:
-                    sin_s_gray = np.mean(dict_sin['gray']['D_D_ridges'])
-
-                if not 'gray_core' in dict_sin or len(dict_sin['gray_core']['D_D_ridges']) == 0:
-                    sin_s_core_gray = None
-                else:
-                    sin_s_core_gray = np.mean(
-                        dict_sin['gray_core']['D_D_ridges'])
-
-                if not 'gray' in dict_thick or len(dict_thick['gray']['thickness_difference']) == 0:
-                    thick_gray = None
-                else:
-                    thick_gray = np.mean(
-                        dict_thick['gray']['thickness_difference'])
-
-                if not 'gray_core' in dict_thick or len(dict_thick['gray_core']['thickness_difference']) == 0:
-                    thick_core_gray = None
-                else:
-                    thick_core_gray = np.mean(
-                        dict_thick['gray_core']['thickness_difference'])
-
-            report2dict(quality_class, report, quatity, rmse, michelson,
-                        n_rig, sin_s, thick, sin_s_core, thick_core, sin_s_gray, thick_gray, sin_s_core_gray, thick_core_gray)
-
-    color_legend = {'Good': u'green', 'Bad': u'orange',
-                    'Ugly': u'red', 'Unknown': u'black'}
     figures = {}
 
     # --------------------------------------------------------------------
-    minutiae_point: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
 
-    total_displayed = 0
-    rating_array = []
+    rating_array = df['minutuae_points']
+    minutuae_points_df = standard_deviation(df, rating_array)
 
-    for quality_class in report:
-        for rating in report[quality_class]['min_points']:
-            color = 'black'
-            if quality_class == Classification.GOOD:
-                color = 'green'
-            elif quality_class == Classification.BAD:
-                color = 'orange'
-            elif quality_class == Classification.UGLY:
-                color = 'red'
+    minutiae_point_fig: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
 
-            plt.plot(total_displayed, rating, marker="o",
-                     color=color, figure=minutiae_point)
+    for index, row in minutuae_points_df.iterrows():
+        plt.plot(index, row['minutuae_points'], marker="o",
+                 color=row['color'], figure=minutiae_point_fig)
 
-            total_displayed += 1
+    plot_trendline(rating_array, minutiae_point_fig)
 
-        rating_array += report[quality_class]['min_points']
-    rating_len = len(rating_array)
-
-    z = np.polyfit(np.arange(rating_len), rating_array, 1)
-    p = np.poly1d(z)
-    plt.plot(np.arange(rating_len), p(np.arange(rating_len)), "r--")
-
-    plt.title('Minutia points')
-    plt.xlabel('Fingeprint number', fontsize='small', figure=minutiae_point)
-    plt.ylabel('Number of minutiae', fontsize='small', figure=minutiae_point)
-    markers = [plt.Line2D([0, 0], [0, 0], color=color, marker='o', linestyle='')
-               for color in color_legend.values()]
-    plt.legend(markers, color_legend.keys(), numpoints=1, fontsize='small')
-    plt.rc('font', size=14)
-    plt.close()
-    figures['minutiae_points_rating'] = minutiae_point
-
-    # --------------------------------------------------------------------
-    rmse: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
-
-    total_displayed = 0
-    rating_array = []
-
-    for quality_class in report:
-        for rating in report[quality_class]['rmse']:
-            color = 'black'
-            if quality_class == Classification.GOOD:
-                color = 'green'
-            elif quality_class == Classification.BAD:
-                color = 'orange'
-            elif quality_class == Classification.UGLY:
-                color = 'red'
-
-            plt.plot(total_displayed, rating, marker="o",
-                     color=color, figure=rmse)
-
-            total_displayed += 1
-
-        rating_array += report[quality_class]['rmse']
-
-    rating_len = len(rating_array)
-
-    z = np.polyfit(np.arange(rating_len), rating_array, 1)
-    p = np.poly1d(z)
-    plt.plot(np.arange(rating_len), p(np.arange(rating_len)), "r--")
-
-    plt.title('RMSE')
-    plt.xlabel('Fingeprint number', fontsize='small', figure=rmse)
-    plt.ylabel('RMSE', fontsize='small', figure=rmse)
-    markers = [plt.Line2D([0, 0], [0, 0], color=color, marker='o', linestyle='')
-               for color in color_legend.values()]
-    plt.legend(markers, color_legend.keys(), numpoints=1, fontsize='small')
-    plt.rc('font', size=14)
-    plt.close()
-    figures['rmse_rating'] = rmse
-
-    # --------------------------------------------------------------------
-    michelson: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
-
-    total_displayed = 0
-    rating_array = []
-
-    for quality_class in report:
-        for rating in report[quality_class]['michelson']:
-            color = 'black'
-            if quality_class == Classification.GOOD:
-                color = 'green'
-            elif quality_class == Classification.BAD:
-                color = 'orange'
-            elif quality_class == Classification.UGLY:
-                color = 'red'
-
-            plt.plot(total_displayed, rating, marker="o",
-                     color=color, figure=michelson)
-
-            total_displayed += 1
-
-        rating_array += report[quality_class]['michelson']
-
-    rating_len = len(rating_array)
-
-    z = np.polyfit(np.arange(rating_len), rating_array, 1)
-    p = np.poly1d(z)
-    plt.plot(np.arange(rating_len), p(np.arange(rating_len)), "r--")
-
-    plt.title('Michelson\'s contrast')
-    plt.xlabel('Fingeprint number', fontsize='small', figure=michelson)
-    plt.ylabel('Contrast', fontsize='small', figure=michelson)
-    markers = [plt.Line2D([0, 0], [0, 0], color=color, marker='o', linestyle='')
-               for color in color_legend.values()]
-    plt.legend(markers, color_legend.keys(), numpoints=1, fontsize='small')
-    plt.rc('font', size=14)
-    plt.close()
-    figures['michelson_rating'] = michelson
-
-    # --------------------------------------------------------------------
-    n_rig: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
-
-    total_displayed = 0
-    rating_array = []
-
-    for quality_class in report:
-        for rating in report[quality_class]['n_rig']:
-            color = 'black'
-            if quality_class == Classification.GOOD:
-                color = 'green'
-            elif quality_class == Classification.BAD:
-                color = 'orange'
-            elif quality_class == Classification.UGLY:
-                color = 'red'
-
-            plt.plot(total_displayed, rating, marker="o",
-                     color=color, figure=n_rig)
-
-            total_displayed += 1
-
-        rating_array += report[quality_class]['n_rig']
-
-    rating_len = len(rating_array)
-
-    z = np.polyfit(np.arange(rating_len), rating_array, 1)
-    p = np.poly1d(z)
-    plt.plot(np.arange(rating_len), p(np.arange(rating_len)), "r--")
-
-    plt.title('Number of ridges')
-    plt.xlabel('Fingeprint number', fontsize='small', figure=n_rig)
-    plt.ylabel('Number of ridges', fontsize='small', figure=n_rig)
-    markers = [plt.Line2D([0, 0], [0, 0], color=color, marker='o', linestyle='')
-               for color in color_legend.values()]
-    plt.legend(markers, color_legend.keys(), numpoints=1, fontsize='small')
-    plt.rc('font', size=14)
-    plt.close()
-    figures['number_of_ridges_rating'] = n_rig
+    plot_metadata('Minutia points', 'Fingeprint number',
+                  'Number of minutiae', minutiae_point_fig)
+    figures['minutiae_points_rating'] = minutiae_point_fig
 
     # --------------------------------------------------------------------
 
-    sin_s: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
+    rating_array = df['rmse']
+    rmse_df = standard_deviation(df, rating_array)
 
-    total_displayed = 0
+    rmse_fig: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
 
-    for quality_class in report:
-        for rating in report[quality_class]['sin_s']:
-            color = 'black'
-            if quality_class == Classification.GOOD:
-                color = 'green'
-            elif quality_class == Classification.BAD:
-                color = 'orange'
-            elif quality_class == Classification.UGLY:
-                color = 'red'
+    for index, row in rmse_df.iterrows():
+        plt.plot(index, row['rmse'], marker="o",
+                 color=row['color'], figure=rmse_fig)
 
-            plt.plot(total_displayed, rating, marker="o",
-                     color=color, figure=sin_s)
+    plot_trendline(rating_array, rmse_fig)
 
-            total_displayed += 1
-
-        rating_array = report[quality_class]['sin_s']
-        rating_len = len(rating_array)
-
-        if rating_len != 0:
-            plt.plot(np.arange(rating_len) + total_displayed - rating_len, np.full(rating_len,
-                     np.mean(rating_array)), color='black', linestyle='--', label='Mean value')
-
-    plt.title('Sinusoidal Crosscut AEC')
-    plt.xlabel('Fingeprint number', fontsize='small', figure=sin_s)
-    plt.ylabel('Sinusoidal deviance', fontsize='small', figure=sin_s)
-    plt.axhline(y=0, color='r', linestyle='-')
-    markers = [plt.Line2D([0, 0], [0, 0], color=color, marker='o', linestyle='')
-               for color in color_legend.values()]
-    plt.legend(markers, color_legend.keys(), numpoints=1, fontsize='small')
-    plt.rc('font', size=14)
-    plt.close()
-
-    figures['sinusoidal_similarity_rating'] = sin_s
+    plot_metadata('Root Mean Square Error', 'Fingeprint number',
+                  'Root Mean Square Error value', rmse_fig)
+    figures['rmse_rating'] = rmse_fig
 
     # --------------------------------------------------------------------
 
-    thick: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
+    rating_array = df['michelson']
+    michelson_df = standard_deviation(df, rating_array)
 
-    total_displayed = 0
+    michelson_fig: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
 
-    for quality_class in report:
-        for rating in report[quality_class]['thick']:
-            color = 'black'
-            if quality_class == Classification.GOOD:
-                color = 'green'
-            elif quality_class == Classification.BAD:
-                color = 'orange'
-            elif quality_class == Classification.UGLY:
-                color = 'red'
+    for index, row in michelson_df.iterrows():
+        plt.plot(index, row['michelson'], marker="o",
+                 color=row['color'], figure=michelson_fig)
 
-            plt.plot(total_displayed, rating, marker="o",
-                     color=color, figure=thick)
+    plot_trendline(rating_array, michelson_fig)
 
-            total_displayed += 1
-
-        rating_array = report[quality_class]['thick']
-        rating_len = len(rating_array)
-
-        if rating_len != 0:
-            plt.plot(np.arange(rating_len) + total_displayed - rating_len, np.full(rating_len,
-                     np.mean(rating_array)), color='black', linestyle='--', label='Mean value')
-
-    plt.title('Thickness AEC')
-    plt.xlabel('Fingeprint number', fontsize='small', figure=thick)
-    plt.ylabel('Sinusoidal deviance', fontsize='small', figure=thick)
-    plt.axhline(y=0, color='r', linestyle='-')
-    markers = [plt.Line2D([0, 0], [0, 0], color=color, marker='o', linestyle='')
-               for color in color_legend.values()]
-    plt.legend(markers, color_legend.keys(), numpoints=1, fontsize='small')
-    plt.rc('font', size=14)
-    plt.close()
-
-    figures['thickness_rating'] = thick
+    plot_metadata('Michelson\'s contrast', 'Fingeprint number',
+                  'Contrast value', michelson_fig)
+    figures['michelson_rating'] = michelson_fig
 
     # --------------------------------------------------------------------
 
-    sin_s_core: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
+    rating_array = df['papilary_ridges']
+    num_rig_df = standard_deviation(df, rating_array)
 
-    total_displayed = 0
+    num_rig_fig: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
 
-    for quality_class in report:
-        for rating in report[quality_class]['sin_s_core']:
-            color = 'black'
-            if quality_class == Classification.GOOD:
-                color = 'green'
-            elif quality_class == Classification.BAD:
-                color = 'orange'
-            elif quality_class == Classification.UGLY:
-                color = 'red'
+    for index, row in num_rig_df.iterrows():
+        plt.plot(index, row['papilary_ridges'], marker="o",
+                 color=row['color'], figure=num_rig_fig)
 
-            plt.plot(total_displayed, rating, marker="o",
-                     color=color, figure=sin_s_core)
+    plot_trendline(rating_array, num_rig_fig)
 
-            total_displayed += 1
-
-        rating_array = report[quality_class]['sin_s_core']
-        rating_len = len(rating_array)
-
-        if rating_len != 0:
-            plt.plot(np.arange(rating_len) + total_displayed - rating_len, np.full(rating_len,
-                     np.mean(rating_array)), color='black', linestyle='--', label='Mean value')
-
-    plt.title('Sinusoidal Crosscut Core AEC')
-    plt.xlabel('Fingeprint number', fontsize='small', figure=sin_s_core)
-    plt.ylabel('Sinusoidal deviance', fontsize='small', figure=sin_s_core)
-    plt.axhline(y=0, color='r', linestyle='-')
-    markers = [plt.Line2D([0, 0], [0, 0], color=color, marker='o', linestyle='')
-               for color in color_legend.values()]
-    plt.legend(markers, color_legend.keys(), numpoints=1, fontsize='small')
-    plt.rc('font', size=14)
-    plt.close()
-
-    figures['sinusoidal_similarity_core_rating'] = sin_s_core
+    plot_metadata('Number of ridges', 'Fingeprint number',
+                  'Number of ridges', num_rig_fig)
+    figures['number_of_ridges_rating'] = num_rig_fig
 
     # --------------------------------------------------------------------
 
-    thick_core: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
+    rating_array = df['sin_s']
+    sin_s_df = standard_deviation(df, rating_array)
 
-    total_displayed = 0
+    sin_s_fig: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
 
-    for quality_class in report:
-        for rating in report[quality_class]['thick_core']:
-            color = 'black'
-            if quality_class == Classification.GOOD:
-                color = 'green'
-            elif quality_class == Classification.BAD:
-                color = 'orange'
-            elif quality_class == Classification.UGLY:
-                color = 'red'
+    for index, row in sin_s_df.iterrows():
+        plt.plot(index, row['sin_s'], marker="o",
+                 color=row['color'], figure=sin_s_fig)
 
-            plt.plot(total_displayed, rating, marker="o",
-                     color=color, figure=thick_core)
+    plot_zero_line(sin_s_df, 'sin_s', sin_s_fig)
 
-            total_displayed += 1
-
-        rating_array = report[quality_class]['thick_core']
-        rating_len = len(rating_array)
-
-        if rating_len != 0:
-            plt.plot(np.arange(rating_len) + total_displayed - rating_len, np.full(rating_len,
-                     np.mean(rating_array)), color='black', linestyle='--', label='Mean value')
-
-    plt.title('Thickness Core AEC')
-    plt.xlabel('Fingeprint number', fontsize='small', figure=thick_core)
-    plt.ylabel('Sinusoidal deviance', fontsize='small', figure=thick_core)
-    plt.axhline(y=0, color='r', linestyle='-')
-    markers = [plt.Line2D([0, 0], [0, 0], color=color, marker='o', linestyle='')
-               for color in color_legend.values()]
-    plt.legend(markers, color_legend.keys(), numpoints=1, fontsize='small')
-    plt.rc('font', size=14)
-    plt.close()
-
-    figures['thickness_core_rating'] = thick_core
+    plt.axhline(y=0, color='r', linestyle='-',
+                label='Ideal value', figure=sin_s_fig)
+    plot_metadata('Sinusoidal Crosscut AEC', 'Fingeprint number',
+                  'Sinusoidal deviance', sin_s_fig)
+    figures['sinusoidal_similarity_rating'] = sin_s_fig
 
     # --------------------------------------------------------------------
 
-    sin_s_gray: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
+    rating_array = df['thick']
+    thick_df = standard_deviation(df, rating_array)
 
-    total_displayed = 0
+    thick_fig: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
 
-    for quality_class in report:
-        for rating in report[quality_class]['sin_s_gray']:
-            color = 'black'
-            if quality_class == Classification.GOOD:
-                color = 'green'
-            elif quality_class == Classification.BAD:
-                color = 'orange'
-            elif quality_class == Classification.UGLY:
-                color = 'red'
+    for index, row in thick_df.iterrows():
+        plt.plot(index, row['thick'], marker="o",
+                 color=row['color'], figure=thick_fig)
 
-            plt.plot(total_displayed, rating, marker="o",
-                     color=color, figure=sin_s_gray)
+    plot_zero_line(thick_df, 'thick', thick_fig)
 
-            total_displayed += 1
-
-        rating_array = report[quality_class]['sin_s_gray']
-        rating_len = len(rating_array)
-
-        if rating_len != 0:
-            plt.plot(np.arange(rating_len) + total_displayed - rating_len, np.full(rating_len,
-                     np.mean(rating_array)), color='black', linestyle='--', label='Mean value')
-
-    plt.title('Sinusoidal Crosscut Grayscale')
-    plt.xlabel('Fingeprint number', fontsize='small', figure=sin_s_gray)
-    plt.ylabel('Sinusoidal deviance', fontsize='small', figure=sin_s_gray)
-    plt.axhline(y=0, color='r', linestyle='-')
-    markers = [plt.Line2D([0, 0], [0, 0], color=color, marker='o', linestyle='')
-               for color in color_legend.values()]
-    plt.legend(markers, color_legend.keys(), numpoints=1, fontsize='small')
-    plt.rc('font', size=14)
-    plt.close()
-
-    figures['sinusoidal_similarity_rating_gray'] = sin_s_gray
+    plt.axhline(y=0, color='r', linestyle='-',
+                label='Ideal value', figure=thick_fig)
+    plot_metadata('Thickness AEC', 'Fingeprint number',
+                  'Thickness deviance', thick_fig)
+    figures['thickness_rating'] = thick_fig
 
     # --------------------------------------------------------------------
 
-    thick_gray: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
+    rating_array = df['sin_s_core']
+    sin_s_core_df = standard_deviation(df, rating_array)
 
-    total_displayed = 0
+    sin_s_core_fig: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
 
-    for quality_class in report:
-        for rating in report[quality_class]['thick_gray']:
-            color = 'black'
-            if quality_class == Classification.GOOD:
-                color = 'green'
-            elif quality_class == Classification.BAD:
-                color = 'orange'
-            elif quality_class == Classification.UGLY:
-                color = 'red'
+    for index, row in sin_s_core_df.iterrows():
+        plt.plot(index, row['sin_s_core'], marker="o",
+                 color=row['color'], figure=sin_s_core_fig)
 
-            plt.plot(total_displayed, rating, marker="o",
-                     color=color, figure=thick_gray)
+    plot_zero_line(sin_s_core_df, 'sin_s_core', sin_s_core_fig)
 
-            total_displayed += 1
-
-        rating_array = report[quality_class]['thick_gray']
-        rating_len = len(rating_array)
-
-        if rating_len != 0:
-            plt.plot(np.arange(rating_len) + total_displayed - rating_len, np.full(rating_len,
-                     np.mean(rating_array)), color='black', linestyle='--', label='Mean value')
-
-    plt.title('Thickness Grayscale')
-    plt.xlabel('Fingeprint number', fontsize='small', figure=thick_gray)
-    plt.ylabel('Sinusoidal deviance', fontsize='small', figure=thick_gray)
-    plt.axhline(y=0, color='r', linestyle='-')
-    markers = [plt.Line2D([0, 0], [0, 0], color=color, marker='o', linestyle='')
-               for color in color_legend.values()]
-    plt.legend(markers, color_legend.keys(), numpoints=1, fontsize='small')
-    plt.rc('font', size=14)
-    plt.close()
-
-    figures['thickness_rating_gray'] = thick_gray
+    plt.axhline(y=0, color='r', linestyle='-',
+                label='Ideal value', figure=sin_s_core_fig)
+    plot_metadata('Sinusoidal Crosscut Core AEC', 'Fingeprint number',
+                  'Sinusoidal deviance', sin_s_core_fig)
+    figures['sinusoidal_similarity_core_rating'] = sin_s_core_fig
 
     # --------------------------------------------------------------------
 
-    sin_s_core_gray: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
+    rating_array = df['thick_core']
+    thick_core_df = standard_deviation(df, rating_array)
 
-    total_displayed = 0
+    thick_core_fig: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
 
-    for quality_class in report:
-        for rating in report[quality_class]['sin_s_core_gray']:
-            color = 'black'
-            if quality_class == Classification.GOOD:
-                color = 'green'
-            elif quality_class == Classification.BAD:
-                color = 'orange'
-            elif quality_class == Classification.UGLY:
-                color = 'red'
+    for index, row in thick_core_df.iterrows():
+        plt.plot(index, row['thick_core'], marker="o",
+                 color=row['color'], figure=thick_core_fig)
 
-            plt.plot(total_displayed, rating, marker="o",
-                     color=color, figure=sin_s_core_gray)
+    plot_zero_line(thick_core_df, 'thick_core', thick_core_fig)
 
-            total_displayed += 1
-
-        rating_array = report[quality_class]['sin_s_core_gray']
-        rating_len = len(rating_array)
-
-        if rating_len != 0:
-            plt.plot(np.arange(rating_len) + total_displayed - rating_len, np.full(rating_len,
-                     np.mean(rating_array)), color='black', linestyle='--', label='Mean value')
-
-    plt.title('Sinusoidal Crosscut Core Grayscale')
-    plt.xlabel('Fingeprint number', fontsize='small', figure=sin_s_core_gray)
-    plt.ylabel('Sinusoidal deviance', fontsize='small', figure=sin_s_core_gray)
-    plt.axhline(y=0, color='r', linestyle='-')
-    markers = [plt.Line2D([0, 0], [0, 0], color=color, marker='o', linestyle='')
-               for color in color_legend.values()]
-    plt.legend(markers, color_legend.keys(), numpoints=1, fontsize='small')
-    plt.rc('font', size=14)
-    plt.close()
-
-    figures['sinusoidal_similarity_core_rating_gray'] = sin_s_core_gray
+    plt.axhline(y=0, color='r', linestyle='-',
+                label='Ideal value', figure=thick_core_fig)
+    plot_metadata('Thickness Core AEC', 'Fingeprint number',
+                  'Thickness deviance', thick_core_fig)
+    figures['thickness_core_rating'] = thick_core_fig
 
     # --------------------------------------------------------------------
 
-    thick_core_gray: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
+    rating_array = df['sin_s_gray']
+    sin_s_gray_df = standard_deviation(df, rating_array)
 
-    total_displayed = 0
+    sin_s_gray_fig: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
 
-    for quality_class in report:
-        for rating in report[quality_class]['thick_core_gray']:
-            color = 'black'
-            if quality_class == Classification.GOOD:
-                color = 'green'
-            elif quality_class == Classification.BAD:
-                color = 'orange'
-            elif quality_class == Classification.UGLY:
-                color = 'red'
+    for index, row in sin_s_gray_df.iterrows():
+        plt.plot(index, row['sin_s_core'], marker="o",
+                 color=row['color'], figure=sin_s_gray_fig)
 
-            plt.plot(total_displayed, rating, marker="o",
-                     color=color, figure=thick_core_gray)
+    plot_zero_line(sin_s_gray_df, 'sin_s_gray', sin_s_gray_fig)
 
-            total_displayed += 1
+    plt.axhline(y=0, color='r', linestyle='-',
+                label='Ideal value', figure=sin_s_gray_fig)
+    plot_metadata('Sinusoidal Crosscut Grayscale', 'Fingeprint number',
+                  'Sinusoidal deviance', sin_s_gray_fig)
+    figures['sinusoidal_similarity_gray_rating'] = sin_s_gray_fig
 
-        rating_array = report[quality_class]['thick_core_gray']
-        rating_len = len(rating_array)
+    # --------------------------------------------------------------------
 
-        if rating_len != 0:
-            plt.plot(np.arange(rating_len) + total_displayed - rating_len, np.full(rating_len,
-                     np.mean(rating_array)), color='black', linestyle='--', label='Mean value')
+    rating_array = df['thick_gray']
+    thick_gray_df = standard_deviation(df, rating_array)
 
-    plt.title('Thickness Core Grayscale')
-    plt.xlabel('Fingeprint number', fontsize='small', figure=thick_core_gray)
-    plt.ylabel('Sinusoidal deviance', fontsize='small', figure=thick_core_gray)
-    plt.axhline(y=0, color='r', linestyle='-')
-    markers = [plt.Line2D([0, 0], [0, 0], color=color, marker='o', linestyle='')
-               for color in color_legend.values()]
-    plt.legend(markers, color_legend.keys(), numpoints=1, fontsize='small')
-    plt.rc('font', size=14)
-    plt.close()
+    thick_gray_fig: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
 
-    figures['thickness_core_rating_gray'] = thick_core_gray
+    for index, row in thick_gray_df.iterrows():
+        plt.plot(index, row['thick_gray'], marker="o",
+                 color=row['color'], figure=thick_gray_fig)
+
+    plot_zero_line(thick_gray_df, 'thick_gray', thick_gray_fig)
+
+    plt.axhline(y=0, color='r', linestyle='-',
+                label='Ideal value', figure=thick_gray_fig)
+    plot_metadata('Thickness Grayscale', 'Fingeprint number',
+                  'Thickness deviance', thick_gray_fig)
+    figures['thickness_gray_rating'] = thick_gray_fig
+
+    # --------------------------------------------------------------------
+
+    rating_array = df['sin_s_core_gray']
+    sin_s_core_gray_df = standard_deviation(df, rating_array)
+
+    sin_s_core_gray_fig: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
+
+    for index, row in sin_s_core_gray_df.iterrows():
+        plt.plot(index, row['sin_s_core_gray'], marker="o",
+                 color=row['color'], figure=sin_s_core_gray_fig)
+
+    plot_zero_line(
+        sin_s_core_gray_df, 'sin_s_core_gray', sin_s_core_gray_fig
+    )
+
+    plt.axhline(y=0, color='r', linestyle='-',
+                label='Ideal value', figure=sin_s_core_gray_fig)
+    plot_metadata('Sinusoidal Crosscut Core Grayscale', 'Fingeprint number',
+                  'Sinusoidal deviance', sin_s_core_gray_fig)
+    figures['sinusoidal_similarity_core_gray_rating'] = sin_s_core_gray_fig
+
+    # --------------------------------------------------------------------
+
+    rating_array = df['thick_core_gray']
+    thick_core_gray_df = standard_deviation(df, rating_array)
+
+    thick_core_gray_fig: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
+
+    for index, row in thick_core_gray_df.iterrows():
+        plt.plot(index, row['thick_core_gray'], marker="o",
+                 color=row['color'], figure=thick_core_gray_fig)
+
+    plot_zero_line(
+        thick_core_gray_df, 'thick_core_gray', thick_core_gray_fig
+    )
+
+    plt.axhline(y=0, color='r', linestyle='-',
+                label='Ideal value', figure=thick_core_gray_fig)
+    plot_metadata('Thickness Core Grayscale', 'Fingeprint number',
+                  'Thickness deviance', thick_core_gray_fig)
+    figures['thickness_core_gray_rating'] = thick_core_gray_fig
+
+    # --------------------------------------------------------------------
 
     save_fig(figures, output_path, '.jpeg')
 
