@@ -174,8 +174,8 @@ class Fingerprint:
 
         self.report.report_minutiae(number_of_cmp, minutiae_points)
 
-    def grade_contrast(self, name='default') -> None:
-        # TODO: Weber?
+    def grade_contrast(self, name='contrast') -> None:
+        # TODO: Add Weber contrast
         # https://stackoverflow.com/questions/68145161/using-python-opencv-to-calculate-vein-leaf-density
 
         # Create mask with valleys and ridges
@@ -211,6 +211,13 @@ class Fingerprint:
         rmse: np.float64 = np.mean(np.square(np.subtract(
             extracted_ridges.image, extracted_valleys.image)))
 
+        if not name in self.image_dict:
+            self.image_dict[name] = {}
+        self.image_dict[name]['rmse_ridges'] = extracted_ridges
+        self.image_dict[name]['rmse_valleys'] = extracted_valleys
+
+        # NRMSE (Normalized Root Mean Square Error) - <0, 255>
+        rmse /= 255
         self.report.report_contrast(rmse, michelson_contrast)
 
     def remove_black_array(self, array, black_threshold=10) -> npt.NDArray:
@@ -273,7 +280,6 @@ class Fingerprint:
         return ridge_count, local_max, local_min
 
     def grade_lines(self, name='lines', draw=True) -> None:
-        # TODO: Does density and count match have relevance
 
         def create_candidates(dicto: Dict, name: str, value: int, cord: int, sample: int):
             if (len(dicto[name]['candidates']) < sample):
@@ -388,7 +394,7 @@ class Fingerprint:
 
                 extracted = self.remove_black_array(mask_ridges.image[:, y])
                 density = count / len(extracted)
-                # TODO: Tweek?
+                # TODO: This calculation could be tweeked to get better results
 
                 vertical['count']['array'].append(count)
                 vertical['density']['array'].append(density)
@@ -815,7 +821,7 @@ class Fingerprint:
 
     def get_perpendicular(self, cx: int, cy: int, name: str, angle_base=1):
         # TODO: Optimalisation (read in 4 directions) - rotate just till 90
-        # or just use scimage function for line rotation
+        # or use scimage function for line rotation
         def rotate_image(image: Image, angle: int, center_col: int, center_row: int) -> Tuple[Image, int, int]:
             image_arr = image.image
             row, col = image_arr.shape

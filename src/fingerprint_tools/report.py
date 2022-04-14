@@ -23,7 +23,6 @@ class Report:
         else:
             text_description = StringDatabase.MINUTIAE_POINT_NOT_ENOUGH
 
-        # TODO: Ask if add to JSON
         self.report['minutuae_points'] = {
             'quantity': number_of_cmp,
             'description': text_description

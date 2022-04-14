@@ -15,7 +15,7 @@ from fingerprint_tools.exception import ArrgumentError as ArrgumentError
 def argument_parse() -> argparse.ArgumentParser:
     """
     Parse the arguments for the whole script and
-    pass them to main
+    pass them to the main
     """
 
     parser = argparse.ArgumentParser(
@@ -52,7 +52,7 @@ def argument_parse() -> argparse.ArgumentParser:
 def set_envinronment(args) -> None:
     """
     Prepares the python environment for packages and sets essential
-    variables for the MSU_AFIS package, and prepares arguments
+    variables for the MSU_AFIS packages, and prepares arguments
     and directory structure
     """
     # Set up logging

@@ -91,8 +91,8 @@ Ukazat vysledky test souboru? Ma cenu tohle davat do prace?
 
 # ----------------------------------------------------------------
 
-Zmirnit kategorii -> teziste
-Orezat extremy
+
+
 
 Jadro -- nejhustejsi bod papilarni linii, stasiarni bod
 Sfinge university of bologna
@@ -101,3 +101,5 @@ Sfinge university of bologna
 
 Napisu emailem kam se pise clanek - done
 Zjistit si informace o projektu a o praci - done
+Orezat extremy - done
+Zmirnit kategorii -> teziste - asi taky done, uvidime, ted uz je to easy to do
