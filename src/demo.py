@@ -8,8 +8,8 @@ import pickle
 import logging
 from datetime import datetime
 
-import fingerprint_tools as fp
-from fingerprint_tools.exception import ArrgumentError as ArrgumentError
+import latfiggra as lfg
+from latfiggra.exception import ArrgumentError as ArrgumentError
 
 
 def argument_parse() -> argparse.ArgumentParser:
@@ -141,7 +141,7 @@ def main(args: argparse.ArgumentParser) -> None:
                     os.makedirs(path_img_des_dir)
 
                 # Create a fingerprint object
-                fingerprint_image = fp.fingerprint.Fingerprint(
+                fingerprint_image = lfg.fingerprint.Fingerprint(
                     path=path_image_src, ppi=args.ppi
                 )
 
