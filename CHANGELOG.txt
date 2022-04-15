@@ -1,6 +1,10 @@
 Change Log
 ==========
 
+1.0.0 (15.04.2022)
+--------------------------------------
+Application algorithmically evaluates the Quality of Dactyloscopic Traces
+
 0.0.1 (29.09.2021)
 --------------------------------------
 Application does nothing. Basic setup.

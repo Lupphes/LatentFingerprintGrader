@@ -2,6 +2,10 @@ from enum import Enum
 
 
 class ContrastTypes(Enum):
+    """
+    All contrast types which are available with the 
+    contrasting function
+    """
     WEBER = 1
     MICHELSON = 2
     RMS = 3
@@ -9,6 +13,10 @@ class ContrastTypes(Enum):
 
 
 class ThresholdFlags(Enum):
+    """
+    All threshold types which are available with the 
+    thresholding function
+    """
     MEAN = 1
     GAUSSIAN = 2
     OTSU = 3

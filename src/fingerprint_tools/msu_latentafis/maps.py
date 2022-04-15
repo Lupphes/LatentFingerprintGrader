@@ -169,6 +169,9 @@ def get_quality_map_dict(img, dict, ori, spacing, block_size=16, process=False, 
             # The lines below should fix this issue
             # patch[patch > t] = t
             # patch[patch < -t] = -t
+            # I did not see the issue, but with my experiments I
+            # did not see improvement or worsen for my case
+            # I still let it here for future updates
 
             patches.append(patch)
 

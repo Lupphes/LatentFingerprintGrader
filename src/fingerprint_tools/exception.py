@@ -17,6 +17,8 @@ __all__ = [
     "UndefinedVariableError"
 
     "FingerprintQualityError"
+
+    "EmptyMinutiaePointListError", "NoFingerprintError", "EmptyMaskError"
 ]
 
 
@@ -56,7 +58,7 @@ class ParseError(FingerToolsError):
 
 
 class FileError(FingerToolsError):
-    error_msg = "Encountered an exception while trying to interect with a specified file."
+    error_msg = "Encountered an exception while trying to interact with a specified file."
     exit_code = ErrorCodes.ERR_GENERAL_FILE
 
     def __init__(self, *args):
@@ -80,7 +82,7 @@ class FileRestrictedError(FileError):
 
 
 class ArrgumentError(FingerToolsError):
-    error_msg = "The specified argument incorrect or missing. Please check your input."
+    error_msg = "The specified argument was incorrect or missing. Please check your input."
     exit_code = ErrorCodes.ERR_WRITING_FILE
 
     def __init__(self, *args):
@@ -88,7 +90,7 @@ class ArrgumentError(FingerToolsError):
 
 
 class UndefinedVariableError(FingerToolsError):
-    error_msg = "Variable which was called was not defined."
+    error_msg = "The variable which was called was not defined."
     exit_code = ErrorCodes.ERR_UNDEFINED_VARIABLE
 
     def __init__(self, *args):
@@ -104,7 +106,7 @@ class FingerprintQualityError(FingerToolsError):
 
 
 class EmptyMinutiaePointListError(FingerprintQualityError):
-    error_msg = "Fingerprint has no minutiae points, which was not expected—error in analysis."
+    error_msg = "The fingerprint has no minutiae points, which was not expected — an error in analysis."
     exit_code = ErrorCodes.ERR_GENERAL_PARSE
 
     def __init__(self, *args):

@@ -143,7 +143,7 @@ class Fingerprint:
     def grade_fingerprint(self) -> None:
         logging.info(f'Grading {self.name}!')
 
-        # There is no conture on the mask and therefore it is empty
+        # There is no contour on the mask, and therefore it is empty
         # -> No fingeprint found, grading not needed
         if cv2.countNonZero(self.mask.image) == 0:
             self.report.report_error(
@@ -178,7 +178,7 @@ class Fingerprint:
         # TODO: Add Weber contrast
         # https://stackoverflow.com/questions/68145161/using-python-opencv-to-calculate-vein-leaf-density
 
-        # Create mask with valleys and ridges
+        # Create a mask with valleys and ridges
         mask_ridges = Image(self.bin_image_masked.image)
 
         mask_valleys = Image(self.bin_image.image)
@@ -292,7 +292,7 @@ class Fingerprint:
                     dicto[name]['candidates'][index] = value
                     dicto[name]['axis'][index] = cord
 
-        # Define new copy of image
+        # Define a new copy of the image
         mask_ridges, offset_x, offset_y = self.cut_image(
             self.mask_filled, self.bin_image_masked)
         row, col = mask_ridges.image.shape
@@ -317,7 +317,7 @@ class Fingerprint:
         mask_ridges_color_vertical_density = Image(
             mask_ridges_color_count.image.copy())
 
-        # Count number of horizontal lines
+        # Count the number of horizontal lines
         horizontal = {
             'count': {
                 'array': [],
@@ -361,7 +361,7 @@ class Fingerprint:
                                   density, x, sample_line_len)
                 count = 0
 
-        # Count number of vertical lines
+        # Count the number of vertical lines
         vertical = {
             'count': {
                 'array': [],
@@ -394,7 +394,7 @@ class Fingerprint:
 
                 extracted = self.remove_black_array(mask_ridges.image[:, y])
                 density = count / len(extracted)
-                # TODO: This calculation could be tweeked to get better results
+                # TODO: This calculation could be tweaked to get better results
 
                 vertical['count']['array'].append(count)
                 vertical['density']['array'].append(density)
@@ -481,7 +481,7 @@ class Fingerprint:
 
         self.report.report_lines(lines_dict, lines_append)
 
-        # Images to generate later
+        # Images to generate later wit function
         if not name in self.image_dict:
             self.image_dict[name] = {}
         self.image_dict[name]['vertical'] = mask_ridges_color_vertical_count
@@ -498,7 +498,7 @@ class Fingerprint:
     def grade_sinusoidal(self, line_signal: npt.NDArray[np.uint8], name: str, draw=True, really=False) -> None:
 
         def square_diff_match(line_signal: npt.NDArray[np.float64], sin_array: npt.NDArray[np.float64], sin_one: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
-            # Using the Difference of squares to find the best period aligement
+            # Using the difference of squares to find the best period alignment
             best_diff: npt.NDArray[np.float64] = None
             best_sin: npt.NDArray[np.float64] = None
             stack_array = np.array([])
@@ -554,7 +554,6 @@ class Fingerprint:
 
         sin_array: npt.NDArray[np.float64] = np.append(sin_array, sin_last)
 
-        # Using the Difference of squares to find the best period aligement
         best_sin = square_diff_match(line_signal, sin_array, sin_one)
 
         if draw:
@@ -789,7 +788,7 @@ class Fingerprint:
         return Image(input_image.image[y:y+h, x:x+w]), x, y
 
     def get_center_cords(self, name: str, draw=True) -> Tuple[int, int]:
-        # Find countours and therfore draw the center
+        # Find contours and calculate the centre
         contour, _ = cv2.findContours(
             self.mask_filled.image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
@@ -798,7 +797,7 @@ class Fingerprint:
             blank = np.zeros(self.mask_filled.image.shape[:2], dtype='uint8')
             cv2.drawContours(blank, contour, -1, (255, 0, 0), 1)
 
-        # Calculate the center of an image
+        # Calculate the centre of an image
         for i in contour:
             M = cv2.moments(i)
             if M['m00'] != 0:
@@ -820,7 +819,7 @@ class Fingerprint:
         return cx, cy
 
     def get_perpendicular(self, cx: int, cy: int, name: str, angle_base=1):
-        # TODO: Optimalisation (read in 4 directions) - rotate just till 90
+        # TODO: Optimisation (read in 4 directions) - rotate just till 90
         # or use scimage function for line rotation
         def rotate_image(image: Image, angle: int, center_col: int, center_row: int) -> Tuple[Image, int, int]:
             image_arr = image.image
@@ -859,8 +858,8 @@ class Fingerprint:
             cx_rot -= x_bb
             cy_rot -= y_bb
 
-            # If coordinate is out from image,
-            # set in on the most bottom position
+            # If the coordinate is out from the image,
+            # set it on the bottom position
             row, _ = rotated_image.image.shape
             if row < cy_rot:
                 cy_rot = row
@@ -917,7 +916,7 @@ class Fingerprint:
                 count_results.append(None)
                 continue
 
-            # Blur the binary image and apply Sobel gradient in Y direction
+            # Blur the binary image and apply Sobel gradient in the Y direction
             # throw white and black and compute mean, the greater the value
             # the better precision
 
@@ -926,7 +925,7 @@ class Fingerprint:
             edge_detection = cv2.Sobel(edge_detection, 0, dx=0, dy=1)
             edge_detection = np.uint8(np.absolute(edge_detection))
 
-            # Throw black (0) and white (255) out
+            # Discard black (0) and white (255)
             edge_detection = edge_detection[:cy_rot, cx_rot:cx_rot+1]
             edge_detection = [
                 i for i in edge_detection if i not in [0, 255]]
@@ -948,7 +947,7 @@ class Fingerprint:
         angle *= angle_base
 
         # Apply the mask and rotation on the image
-        # and get correct coordinations
+        # and get correct coordination
         self.clahe_grayscale_rotated, cx_rot, cy_rot = make_image(
             self.grayscale_clahe_masked, angle, cx, cy, draw=False, image=False
         )
@@ -964,7 +963,7 @@ class Fingerprint:
         extracted_grayscale_line = np.rot90(extracted_grayscale_line)[0]
         extracted_aec_line = np.rot90(extracted_aec_line)[0]
 
-        # Remove black pixels from array
+        # Remove black pixels from the array
         for i in range(len(extracted_grayscale_line)):
             if extracted_grayscale_line[i] != 0:
                 extracted_grayscale_line = extracted_grayscale_line[i:]
@@ -987,7 +986,7 @@ class Fingerprint:
 
         self.report.report_perpendicular(angle, ridge_count, name)
 
-        # Generate image which shows the progress
+        # Generate images that show the progress
         if not name in self.image_dict:
             self.image_dict[name] = {}
         self.image_dict[name]['perpendicular'] = make_image(

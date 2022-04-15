@@ -52,8 +52,8 @@ def json2pandas(log_file_path: Path) -> pd.DataFrame:
     df.reset_index(inplace=True)
     df = df.rename(columns={'index': 'image'})
 
-    df['minutuae_points'] = pd.json_normalize(
-        df['minutuae_points'])['quantity']
+    df['minutiae_points'] = pd.json_normalize(
+        df['minutiae_points'])['quantity']
     df['papilary_ridges'] = pd.json_normalize(
         df['papilary_ridges'])['total_mean']
     papillary_crosscut = pd.json_normalize(
@@ -224,13 +224,13 @@ def main(args: argparse.ArgumentParser) -> None:
 
     # --------------------------------------------------------------------
 
-    rating_array = df['minutuae_points']
-    minutuae_points_df = standard_deviation(df, rating_array)
+    rating_array = df['minutiae_points']
+    minutiae_points_df = standard_deviation(df, rating_array)
 
     minutiae_point_fig: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
 
-    for index, row in minutuae_points_df.iterrows():
-        plt.plot(index, row['minutuae_points'], marker="o",
+    for index, row in minutiae_points_df.iterrows():
+        plt.plot(index, row['minutiae_points'], marker="o",
                  color=row['color'], figure=minutiae_point_fig)
 
     plot_trendline(rating_array, minutiae_point_fig)

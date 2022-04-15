@@ -6,7 +6,7 @@ from pathlib import Path
 
 from typing import Dict
 
-from .definitions import MinutuaeThreshold, RMSEThreshold, NumberOfRidgesThreshold
+from .definitions import MinutiaeThreshold, RMSEThreshold, NumberOfRidgesThreshold
 from .string_database import StringDatabase
 
 
@@ -16,14 +16,14 @@ class Report:
 
     def report_minutiae(self, number_of_cmp: int, minutiae_points: npt.NDArray) -> None:
         text_description = ''
-        if number_of_cmp > MinutuaeThreshold.BEYOND_RESONABLE_DOUBT:
+        if number_of_cmp > MinutiaeThreshold.BEYOND_RESONABLE_DOUBT:
             text_description = StringDatabase.MINUTIAE_POINT_NO_DOUBT
-        elif number_of_cmp <= MinutuaeThreshold.BEYOND_RESONABLE_DOUBT and number_of_cmp > MinutuaeThreshold.TWELVE_GUIDELINE:
+        elif number_of_cmp <= MinutiaeThreshold.BEYOND_RESONABLE_DOUBT and number_of_cmp > MinutiaeThreshold.TWELVE_GUIDELINE:
             text_description = StringDatabase.MINUTIAE_POINT_ENOUGH
         else:
             text_description = StringDatabase.MINUTIAE_POINT_NOT_ENOUGH
 
-        self.report['minutuae_points'] = {
+        self.report['minutiae_points'] = {
             'quantity': number_of_cmp,
             'description': text_description
             # 'minutiae_points': minutiae_points
