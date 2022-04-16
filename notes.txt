@@ -99,7 +99,20 @@ Sfinge university of bologna
 
 
 
+Kod:
+Pridat art
+Ohandlit chybu s modely
+Ceknout results na metacentru
+
 Napisu emailem kam se pise clanek - done
 Zjistit si informace o projektu a o praci - done
 Orezat extremy - done
 Zmirnit kategorii -> teziste - asi taky done, uvidime, ted uz je to easy to do
+
+
+
+# -------------- Co probrat 19.4
+Mam aktualni release. Kdy a jak muzu zverejnit
+Odtranene `papillary` vsude
+Vice se zamerit na text
+Ukazat kontrastni obrazky
