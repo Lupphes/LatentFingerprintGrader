@@ -26,12 +26,14 @@ oauthlib==3.2.0
 opencv-contrib-python==4.5.5.64
 opt-einsum==3.3.0
 packaging==21.3
+pandas==1.3.5
 Pillow==9.0.1
 protobuf==3.19.4
 pyasn1==0.4.8
 pyasn1-modules==0.2.8
 pyparsing==3.0.7
 python-dateutil==2.8.2
+pytz==2022.1
 PyWavelets==1.3.0
 requests==2.27.1
 requests-oauthlib==1.3.1
@@ -44,7 +46,7 @@ tensorflow==2.0.0
 tensorflow-estimator==2.0.1
 termcolor==1.1.0
 tifffile==2021.11.2
-typing-extensions==4.1.1
+typing_extensions==4.1.1
 urllib3==1.26.9
 Werkzeug==2.0.3
 wrapt==1.14.0

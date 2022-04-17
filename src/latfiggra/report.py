@@ -29,10 +29,10 @@ class Report:
             # 'minutiae_points': minutiae_points
         }
 
-    def report_contrast(self, rmse_ridge: np.float64, rmse_valley: np.float64, rmse_ratio: np.float64, color_ration: np.float64, michelson_contrast: np.float64) -> None:
+    def report_contrast(self, rmse_ridge: np.float64, rmse_valley: np.float64, rmse_ratio: np.float64, color_ratio: np.float64, michelson_contrast: np.float64) -> None:
         col_diff_description = ''
 
-        if color_ration > ColorDifferenceThreshold.VALID:
+        if color_ratio > ColorDifferenceThreshold.VALID:
             col_diff_description = StringDatabase.COL_DIFF_VALID
         else:
             col_diff_description = StringDatabase.COL_DIFF_INVALID
@@ -41,9 +41,9 @@ class Report:
             'rmse_ridge': float(rmse_ridge),
             'rmse_valley': float(rmse_valley),
             'rmse_ratio': float(rmse_ratio),
-            'color_ration': float(color_ration),
-            'michelson_contrast_pct': float(michelson_contrast),
-            'description': col_diff_description
+            'color_ratio': float(color_ratio),
+            'michelson_contrast_pct': float(michelson_contrast)
+            # 'description': col_diff_description
         }
 
     def report_lines(self, lines_dict: Dict, lines_append: Dict) -> None:

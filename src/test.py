@@ -63,7 +63,7 @@ def json2pandas(log_file_path: Path) -> pd.DataFrame:
     df['rmse_ridge'] = contrast['rmse_ridge']
     df['rmse_valley'] = contrast['rmse_valley']
     df['rmse_ratio'] = contrast['rmse_ratio']
-    df['color_ration'] = contrast['color_ration']
+    df['color_ratio'] = contrast['color_ratio']
     df['michelson'] = contrast['michelson_contrast_pct']
 
     df['sin_s'] = papillary_crosscut['sinusoidal_shape.aec.D_D_ridges']
@@ -302,23 +302,28 @@ def main(args: argparse.ArgumentParser) -> None:
 
     # --------------------------------------------------------------------
 
-    rating_array = df['color_ration']
-    # df = df.sort_values(by='color_ration')
-    # print(df['image'], df['color_ration'])
+    rating_array = df['color_ratio']
+    # df = df.sort_values(by='color_ratio')
+    # # df = df[df['color_ratio'] > 0.98 ]
+    # # df = df[df['color_ratio'] < 1.02 ]
+    # print(df[['image', 'color_ratio']])
     # exit(2)
-    color_ration_df = standard_deviation(df, rating_array)
+    color_ratio_df = standard_deviation(df, rating_array)
 
-    color_ration_fig: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
+    color_ratio_fig: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
 
-    for index, row in color_ration_df.iterrows():
-        plt.plot(index, row['color_ration'], marker="o",
-                 color=row['color'], figure=color_ration_fig)
+    for index, row in color_ratio_df.iterrows():
+        plt.plot(index, row['color_ratio'], marker="o",
+                 color=row['color'], figure=color_ratio_fig)
 
-    plot_trendline(rating_array, color_ration_fig)
+    plot_zero_line(color_ratio_df, 'color_ratio', color_ratio_fig)
 
+    plot_trendline(rating_array, color_ratio_fig)
+    plt.axhline(y=1, color='r', linestyle='-',
+                label='Ideal value', figure=color_ratio_fig)
     plot_metadata('Color Ratio', 'Fingeprint number',
-                  'Color difference', color_ration_fig)
-    figures['color_ration'] = color_ration_fig
+                  'Color difference', color_ratio_fig)
+    figures['color_ratio'] = color_ratio_fig
 
     # --------------------------------------------------------------------
 

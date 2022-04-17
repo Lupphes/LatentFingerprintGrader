@@ -97,13 +97,6 @@ Ukazat vysledky test souboru? Ma cenu tohle davat do prace?
 Jadro -- nejhustejsi bod papilarni linii, stasiarni bod
 Sfinge university of bologna
 
-
-
-Kod:
-Pridat art
-Ohandlit chybu s modely
-Ceknout results na metacentru
-
 Napisu emailem kam se pise clanek - done
 Zjistit si informace o projektu a o praci - done
 Orezat extremy - done
@@ -116,3 +109,7 @@ Mam aktualni release. Kdy a jak muzu zverejnit
 Odtranene `papillary` vsude
 Vice se zamerit na text
 Ukazat kontrastni obrazky
+
+
+Kod:
+Zkusit to same u RMSE
