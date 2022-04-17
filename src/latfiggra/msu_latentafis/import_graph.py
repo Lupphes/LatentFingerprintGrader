@@ -40,6 +40,9 @@ class MinutiaeExtraction(ImportGraph):
     def __init__(self, model_dir: Path):
         super().__init__()
         self.weight = get_weights(self.SHAPE, self.SHAPE, 12, sigma=None)
+        print(model_dir)
+        if not model_dir.exists():
+            raise FileNotFoundError(f'{model_dir} folder was not found. Check your model directory')
         super().load_graph(model_dir)
         self.shape = self.phase_train_placeholder.get_shape()
 

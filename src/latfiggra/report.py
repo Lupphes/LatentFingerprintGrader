@@ -6,7 +6,7 @@ from pathlib import Path
 
 from typing import Dict
 
-from .definitions import MinutiaeThreshold, RMSEThreshold, NumberOfRidgesThreshold
+from .definitions import MinutiaeThreshold, ColorDifferenceThreshold, NumberOfRidgesThreshold
 from .string_database import StringDatabase
 
 
@@ -29,18 +29,21 @@ class Report:
             # 'minutiae_points': minutiae_points
         }
 
-    def report_contrast(self, rmse: np.float64, michelson_contrast: np.float64) -> None:
-        rmse_description = ''
+    def report_contrast(self, rmse_ridge: np.float64, rmse_valley: np.float64, rmse_ratio: np.float64, color_ration: np.float64, michelson_contrast: np.float64) -> None:
+        col_diff_description = ''
 
-        if rmse > RMSEThreshold.VALID:
-            rmse_description = StringDatabase.RMSE_VALID
+        if color_ration > ColorDifferenceThreshold.VALID:
+            col_diff_description = StringDatabase.COL_DIFF_VALID
         else:
-            rmse_description = StringDatabase.RMSE_INVALID
+            col_diff_description = StringDatabase.COL_DIFF_INVALID
 
         self.report['contrast'] = {
-            'rmse': float(rmse),
+            'rmse_ridge': float(rmse_ridge),
+            'rmse_valley': float(rmse_valley),
+            'rmse_ratio': float(rmse_ratio),
+            'color_ration': float(color_ration),
             'michelson_contrast_pct': float(michelson_contrast),
-            'description': rmse_description
+            'description': col_diff_description
         }
 
     def report_lines(self, lines_dict: Dict, lines_append: Dict) -> None:

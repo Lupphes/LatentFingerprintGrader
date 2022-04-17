@@ -2,6 +2,7 @@ import os
 import cv2
 import logging
 import numpy as np
+import numpy.ma as ma
 import numpy.typing as npt
 from pathlib import Path
 from matplotlib import pyplot as plt
@@ -18,6 +19,11 @@ from typing import Dict, Union, Tuple
 
 
 class Fingerprint:
+    """
+    Fingeprint class which represents a fingeprint image
+    Parses, enhances and grades fingeprint image
+    🦊 🐺 🦌 🐕
+    """
     def __init__(self, path, ppi):
         self.name: str = Path(path).name
         self.ppi: int = ppi
@@ -178,20 +184,6 @@ class Fingerprint:
         # TODO: Add Weber contrast
         # https://stackoverflow.com/questions/68145161/using-python-opencv-to-calculate-vein-leaf-density
 
-        # Create a mask with valleys and ridges
-        mask_ridges = Image(self.bin_image_masked.image)
-
-        mask_valleys = Image(self.bin_image.image)
-        mask_valleys.invert_binary()
-        mask_valleys.apply_mask(self.mask)
-
-        # Extracted them from the image
-        extracted_ridges: Image = Image(self.grayscale_clahe.image)
-        extracted_ridges.apply_mask(mask_ridges)
-
-        extracted_valleys: Image = Image(self.grayscale_clahe.image)
-        extracted_valleys.apply_mask(mask_valleys)
-
         # Michelson contrast
         # Source: https://stackoverflow.com/questions/57256159/how-extract-contrast-level-of-a-photo-opencv
         kernel = np.ones((4, 4), np.uint8)
@@ -206,19 +198,73 @@ class Fingerprint:
         michelson_contrast = (reg_max - reg_min) / (reg_max + reg_min)
         michelson_contrast = 100 * np.mean(michelson_contrast)
 
+        # --------------------------------------------------------------
+
+        # Create a mask with valleys and ridges
+        inverted_mask = Image(self.mask_filled.image)
+        inverted_mask.invert_binary()
+
+        mask_ridges = Image(cv2.bitwise_or(inverted_mask.image, self.bin_image.image))
+
+        mask_valleys = Image(self.bin_image.image)
+        mask_valleys.invert_binary()
+        mask_valleys = Image(cv2.bitwise_or(inverted_mask.image, mask_valleys.image))
+
+        # Extracted them from the image
+        extracted_ridges: Image = Image(self.grayscale_clahe.image)
+        extracted_ridges.apply_mask(mask_ridges)
+
+        extracted_valleys: Image = Image(self.grayscale_clahe.image)
+        extracted_valleys.apply_mask(mask_valleys)
+
+        mask_ridges_bin = Image(mask_ridges.image / 255)
+        mask_valleys_bin = Image(mask_valleys.image / 255)
+        
+        masked_array_ridges = ma.masked_array(extracted_ridges.image, mask=mask_valleys_bin.image)
+        masked_extracted_ridges = masked_array_ridges[~masked_array_ridges.mask]
+
+        masked_array_valleys = ma.masked_array(extracted_valleys.image, mask=mask_ridges_bin.image)
+        masked_extracted_valleys = masked_array_valleys[~masked_array_valleys.mask]
+
+        extracted_ridges_bin = masked_extracted_ridges / 255
+        extracted_valleys_bin = masked_extracted_valleys / 255
+
+        color_ration = np.mean(extracted_ridges_bin) / np.mean(extracted_valleys_bin)
+
+        # Normalization <0,100>
+        color_ration = (color_ration - 1) * 100 
+
         # Root Mean Square Error
         # Calculates the difference between colours of ridges and valleys
-        rmse: np.float64 = np.mean(np.square(np.subtract(
-            extracted_ridges.image, extracted_valleys.image)))
+        rmse_ridge: np.float64 = np.mean(np.square(np.subtract(masked_extracted_ridges, np.full(masked_extracted_ridges.shape, 255))))
+        rmse_valley: np.float64 = np.mean(np.square(np.subtract(masked_extracted_valleys, np.full(masked_extracted_valleys.shape, 0))))
+
+
+        # NRMSE (Normalized Root Mean Square Error) <0,1>
+        rmse_ridge = np.sqrt(rmse_ridge) / 255
+        rmse_valley = np.sqrt(rmse_valley) / 255
+        # print(rmse_ridge * 100, rmse_valley * 100)
+
+        rmse_mean = np.sqrt(np.square(np.subtract(rmse_valley, rmse_ridge)))
+
+        # Normalization <0,100>
+        rmse_mean *= 100
+
+        # print(color_ration, rmse_mean)
 
         if not name in self.image_dict:
             self.image_dict[name] = {}
-        self.image_dict[name]['rmse_ridges'] = extracted_ridges
-        self.image_dict[name]['rmse_valleys'] = extracted_valleys
+        
+        extracted_ridges_save =  Image(extracted_ridges.image)
+        extracted_ridges_save.apply_mask(self.mask_filled)
 
-        # NRMSE (Normalized Root Mean Square Error) - <0, 255>
-        rmse /= 255
-        self.report.report_contrast(rmse, michelson_contrast)
+        extracted_valleys_save = Image(extracted_valleys.image)
+        extracted_valleys_save.apply_mask(self.mask_filled)
+
+        self.image_dict[name]['rmse_valleys'] = extracted_valleys_save
+        self.image_dict[name]['rmse_ridges'] = extracted_ridges_save
+
+        self.report.report_contrast(rmse_ridge * 100, rmse_valley * 100, rmse_mean, color_ration, michelson_contrast)
 
     def remove_black_array(self, array, black_threshold=10) -> npt.NDArray:
         # Remove masked parts

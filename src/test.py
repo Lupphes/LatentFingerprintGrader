@@ -60,7 +60,10 @@ def json2pandas(log_file_path: Path) -> pd.DataFrame:
         df['papillary_crosscut']).dropna()
     contrast = pd.json_normalize(df['contrast'])
 
-    df['rmse'] = contrast['rmse']
+    df['rmse_ridge'] = contrast['rmse_ridge']
+    df['rmse_valley'] = contrast['rmse_valley']
+    df['rmse_ratio'] = contrast['rmse_ratio']
+    df['color_ration'] = contrast['color_ration']
     df['michelson'] = contrast['michelson_contrast_pct']
 
     df['sin_s'] = papillary_crosscut['sinusoidal_shape.aec.D_D_ridges']
@@ -213,6 +216,7 @@ def main(args: argparse.ArgumentParser) -> None:
     Simple script for generating plots from log.json
     As the SD27 dataset was graded, we can compare those two
     gradings with this script
+    🦊 🐺 🦌 🐕
     """
 
     log_file_path: Path = args.sdir
@@ -241,20 +245,80 @@ def main(args: argparse.ArgumentParser) -> None:
 
     # --------------------------------------------------------------------
 
-    rating_array = df['rmse']
-    rmse_df = standard_deviation(df, rating_array)
+    rating_array = df['rmse_ratio']
+    rmse_ratio_df = standard_deviation(df, rating_array)
+    # df = df.sort_values(by='rmse_ratio')
+    # print(df['image'])
+    # exit(2)
+    rmse_ratio_fig: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
 
-    rmse_fig: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
+    for index, row in rmse_ratio_df.iterrows():
+        plt.plot(index, row['rmse_ratio'], marker="o",
+                 color=row['color'], figure=rmse_ratio_fig)
 
-    for index, row in rmse_df.iterrows():
-        plt.plot(index, row['rmse'], marker="o",
-                 color=row['color'], figure=rmse_fig)
+    plot_trendline(rating_array, rmse_ratio_fig)
 
-    plot_trendline(rating_array, rmse_fig)
+    plot_metadata('Root Mean Square Error Ratio', 'Fingeprint number',
+                  'Root Mean Square Error value', rmse_ratio_fig)
+    figures['rmse_ratio_rating'] = rmse_ratio_fig
 
-    plot_metadata('Root Mean Square Error', 'Fingeprint number',
-                  'Root Mean Square Error value', rmse_fig)
-    figures['rmse_rating'] = rmse_fig
+    # --------------------------------------------------------------------
+
+    rating_array = df['rmse_valley']
+    rmse_valley_df = standard_deviation(df, rating_array)
+    # df.sort_values(by='rmse_valley')
+    # print(df['rmse_valley'])
+    # exit(2)
+    rmse_valley_fig: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
+
+    for index, row in rmse_valley_df.iterrows():
+        plt.plot(index, row['rmse_valley'], marker="o",
+                 color=row['color'], figure=rmse_valley_fig)
+
+    plot_trendline(rating_array, rmse_valley_fig)
+
+    plot_metadata('Root Mean Square Error Valley', 'Fingeprint number',
+                  'Root Mean Square Error value', rmse_valley_fig)
+    figures['rmse_valley_rating'] = rmse_valley_fig
+
+    # --------------------------------------------------------------------
+
+    rating_array = df['rmse_ridge']
+    rmse_ridge_df = standard_deviation(df, rating_array)
+    # df.sort_values(by='rmse_ridge')
+    # print(df['rmse_ridge'])
+    # exit(2)
+    rmse_ridge_fig: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
+
+    for index, row in rmse_ridge_df.iterrows():
+        plt.plot(index, row['rmse_ridge'], marker="o",
+                 color=row['color'], figure=rmse_ridge_fig)
+
+    plot_trendline(rating_array, rmse_ridge_fig)
+
+    plot_metadata('Root Mean Square Error Ridges', 'Fingeprint number',
+                  'Root Mean Square Error value', rmse_ridge_fig)
+    figures['rmse_ridge_rating'] = rmse_ridge_fig
+
+    # --------------------------------------------------------------------
+
+    rating_array = df['color_ration']
+    # df = df.sort_values(by='color_ration')
+    # print(df['image'], df['color_ration'])
+    # exit(2)
+    color_ration_df = standard_deviation(df, rating_array)
+
+    color_ration_fig: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
+
+    for index, row in color_ration_df.iterrows():
+        plt.plot(index, row['color_ration'], marker="o",
+                 color=row['color'], figure=color_ration_fig)
+
+    plot_trendline(rating_array, color_ration_fig)
+
+    plot_metadata('Color Ratio', 'Fingeprint number',
+                  'Color difference', color_ration_fig)
+    figures['color_ration'] = color_ration_fig
 
     # --------------------------------------------------------------------
 

@@ -16,8 +16,8 @@ class StringDatabase(str, Enum):
     MINUTIAE_POINT_ENOUGH = 'Enough minutiae points for identification with possible error'
     MINUTIAE_POINT_NOT_ENOUGH = 'Not enough minutiae points for identification'
 
-    RMSE_VALID = 'The contrast has proven that the fingerprint is valid'
-    RMSE_INVALID = 'The contrast has proven that the fingerprint is not valid'
+    COL_DIFF_VALID = 'The contrast difference is enough to differentiate between ridges and valleys'
+    COL_DIFF_INVALID = 'The contrast difference is not enough to differentiate between ridges and valleys'
 
     RIDGES_EXCELENT = 'The fingerprint has a great number of papillary ridges'
     RIDGES_GOOD = 'The fingerprint has a good amount of papillary ridges'

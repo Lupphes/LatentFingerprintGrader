@@ -110,6 +110,7 @@ def main(args: argparse.ArgumentParser) -> None:
     Ondřej Sloup (xsloup02)
     Algorithmic Evaluation of the Quality of Dactyloscopic Traces
     Bachelor's Thesis 2022
+    🦊 🐺 🦌 🐕
 
     Launch the script and recursively go through the given folders
     and generate log.json with fingerprint evaluation

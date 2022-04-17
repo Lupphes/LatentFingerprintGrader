@@ -139,7 +139,7 @@ class LatentExtractionModel:
             quality_map_aec, stft_texture_img, aec_img, block_size
         )
 
-        images['mask'] = mask
+        images['mask'] = mask * 255
         images['aec_mask'] = aec_img * mask
 
         # --------------------------------------------------------------------

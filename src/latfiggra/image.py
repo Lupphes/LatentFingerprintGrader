@@ -133,3 +133,4 @@ class Image:
             for algorithm in dictionary[variant]:
                 dictionary[variant][algorithm].save(
                     path, f"{name}_{variant}_{algorithm}", ext)
+                    

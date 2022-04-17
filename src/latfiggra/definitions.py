@@ -15,14 +15,14 @@ class MinutiaeThreshold(IntEnum):
     BEYOND_RESONABLE_DOUBT = 20
 
 
-class RMSEThreshold(float, Enum):
+class ColorDifferenceThreshold(float, Enum):
     """
-    The threshold for Root Mean Square Error.
+    The threshold for Color Difference.
     This value was selected based on experiments with the 
     dataset, and since it is a new method making it more 
     accurate is desirable
     """
-    VALID = 0.00901960784314
+    VALID = 12.66
 
 
 class NumberOfRidgesThreshold(IntEnum):
