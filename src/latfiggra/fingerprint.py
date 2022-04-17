@@ -258,7 +258,7 @@ class Fingerprint:
         # Normalization <0,100>
         rmse_mean *= 100
 
-        # print(rmse_mean)
+        # print(color_ratio, rmse_mean)
 
         if not name in self.image_dict:
             self.image_dict[name] = {}
