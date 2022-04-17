@@ -248,7 +248,7 @@ def main(args: argparse.ArgumentParser) -> None:
     rating_array = df['rmse_ratio']
     rmse_ratio_df = standard_deviation(df, rating_array)
     # df = df.sort_values(by='rmse_ratio')
-    # print(df['image'])
+    # print(df[['image', 'rmse_ratio']])
     # exit(2)
     rmse_ratio_fig: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
 

@@ -249,6 +249,8 @@ class Fingerprint:
         # NRMSE (Normalized Root Mean Square Error) <0,1>
         rmse_ridge = np.sqrt(rmse_ridge) / 255
         rmse_valley = np.sqrt(rmse_valley) / 255
+
+        rmse_valley = np.abs(rmse_valley - 1) # Translate valleys to ridges
         # print(rmse_ridge * 100, rmse_valley * 100)
 
         rmse_mean = np.sqrt(np.square(np.subtract(rmse_valley, rmse_ridge)))
@@ -256,7 +258,7 @@ class Fingerprint:
         # Normalization <0,100>
         rmse_mean *= 100
 
-        # print(color_ratio, rmse_mean)
+        # print(rmse_mean)
 
         if not name in self.image_dict:
             self.image_dict[name] = {}
