@@ -232,13 +232,15 @@ class Fingerprint:
         # Translate valleys to ridges
         trans_extracted_valleys_bin = np.abs(extracted_valleys_bin - 1)
 
-        # print(np.mean(extracted_ridges_bin),  np.mean(trans_extracted_valleys_bin))
-        if np.mean(trans_extracted_valleys_bin) == 0:
+        mean_trans_extracted_valleys_bin = np.mean(trans_extracted_valleys_bin)
+        mean_extracted_ridges_bin = np.mean(extracted_ridges_bin)
+
+        if mean_trans_extracted_valleys_bin == 0:
             color_ratio = np.finfo(np.float64).max
-        elif np.mean(extracted_ridges_bin) == 0:
-            color_ratio = np.finfo(np.float64).max
+        elif mean_extracted_ridges_bin== 0:
+            color_ratio = 0
         else:
-            color_ratio = np.mean(extracted_ridges_bin) / np.mean(trans_extracted_valleys_bin)
+            color_ratio = mean_extracted_ridges_bin / mean_trans_extracted_valleys_bin
 
         # Root Mean Square Error
         # Calculates the difference between colours of ridges and valleys
@@ -250,12 +252,13 @@ class Fingerprint:
         rmse_ridge = np.sqrt(rmse_ridge) / 255
         rmse_valley = np.sqrt(rmse_valley) / 255
 
-        rmse_valley = np.abs(rmse_valley - 1) # Translate valleys to ridges
+        # rmse_valley = np.abs(rmse_valley - 1) # Translate valleys to ridges
         # print(rmse_ridge * 100, rmse_valley * 100)
 
-        rmse_mean = np.sqrt(np.square(np.subtract(rmse_valley, rmse_ridge)))
+        rmse_mean = np.abs(np.add(rmse_valley, rmse_ridge))
 
         # Normalization <0,100>
+        rmse_mean /= 2
         rmse_mean *= 100
 
         # print(color_ratio, rmse_mean)
@@ -272,7 +275,7 @@ class Fingerprint:
         self.image_dict[name]['rmse_valleys'] = extracted_valleys_save
         self.image_dict[name]['rmse_ridges'] = extracted_ridges_save
 
-        self.report.report_contrast(rmse_ridge * 100, rmse_valley * 100, rmse_mean, color_ratio, michelson_contrast)
+        self.report.report_contrast(rmse_ridge * 100, rmse_valley * 100, rmse_mean, mean_extracted_ridges_bin, mean_trans_extracted_valleys_bin, color_ratio, michelson_contrast)
 
     def remove_black_array(self, array, black_threshold=10) -> npt.NDArray:
         # Remove masked parts
@@ -1059,7 +1062,7 @@ class Fingerprint:
 
     def generate_images(self, path: Path, ext='.jpeg') -> None:
         Image.save_img(self.image_dict, path, self.name, ext)
-        Image.save_fig(self.figure_dict, path, self.name, ext)
+        Image.save_fig(self.figure_dict, path, self.name, '.pgf')
 
     def show(self) -> None:
         Image.show(name='Grayscale', image=self.grayscale.image, scale=0.5)

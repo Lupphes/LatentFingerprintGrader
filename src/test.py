@@ -6,6 +6,7 @@ from pathlib import Path
 from enum import IntEnum
 import numpy as np
 from matplotlib import pyplot as plt
+import matplotlib
 import pandas as pd
 from scipy import stats
 
@@ -64,6 +65,8 @@ def json2pandas(log_file_path: Path) -> pd.DataFrame:
     df['rmse_valley'] = contrast['rmse_valley']
     df['rmse_ratio'] = contrast['rmse_ratio']
     df['color_ratio'] = contrast['color_ratio']
+    df['col_diff_ridge'] = contrast['col_diff_ridge']
+    df['col_diff_valley'] = contrast['col_diff_valley']
     df['michelson'] = contrast['michelson_contrast_pct']
 
     df['sin_s'] = papillary_crosscut['sinusoidal_shape.aec.D_D_ridges']
@@ -165,7 +168,6 @@ def plot_metadata(title, x_label: str, y_label: str, figure: plt.Figure) -> None
     markers = [plt.Line2D([0, 0], [0, 0], color=color, marker='o', linestyle='')
                for color in color_legend.values()]
     plt.legend(markers, color_legend.keys(), numpoints=1, fontsize='small')
-    plt.rc('font', size=14)
     plt.close()
 
 
@@ -208,6 +210,7 @@ def save_fig(dictionary: Dict, path: Path, ext: str) -> None:
 
     for variant in dictionary:
         fname = path / f"{variant}{ext}"
+        dictionary[variant].set_size_inches(w=8, h=3.5)
         dictionary[variant].savefig(fname)
 
 
@@ -231,7 +234,7 @@ def main(args: argparse.ArgumentParser) -> None:
     rating_array = df['minutiae_points']
     minutiae_points_df = standard_deviation(df, rating_array)
 
-    minutiae_point_fig: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
+    minutiae_point_fig: plt.Figure = plt.figure(figsize=(8, 3))
 
     for index, row in minutiae_points_df.iterrows():
         plt.plot(index, row['minutiae_points'], marker="o",
@@ -250,7 +253,7 @@ def main(args: argparse.ArgumentParser) -> None:
     # df = df.sort_values(by='rmse_ratio')
     # print(df[['image', 'rmse_ratio']])
     # exit(2)
-    rmse_ratio_fig: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
+    rmse_ratio_fig: plt.Figure = plt.figure(figsize=(8, 3))
 
     for index, row in rmse_ratio_df.iterrows():
         plt.plot(index, row['rmse_ratio'], marker="o",
@@ -269,7 +272,7 @@ def main(args: argparse.ArgumentParser) -> None:
     # df.sort_values(by='rmse_valley')
     # print(df['rmse_valley'])
     # exit(2)
-    rmse_valley_fig: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
+    rmse_valley_fig: plt.Figure = plt.figure(figsize=(8, 3))
 
     for index, row in rmse_valley_df.iterrows():
         plt.plot(index, row['rmse_valley'], marker="o",
@@ -288,7 +291,7 @@ def main(args: argparse.ArgumentParser) -> None:
     # df.sort_values(by='rmse_ridge')
     # print(df['rmse_ridge'])
     # exit(2)
-    rmse_ridge_fig: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
+    rmse_ridge_fig: plt.Figure = plt.figure(figsize=(8, 3))
 
     for index, row in rmse_ridge_df.iterrows():
         plt.plot(index, row['rmse_ridge'], marker="o",
@@ -302,15 +305,49 @@ def main(args: argparse.ArgumentParser) -> None:
 
     # --------------------------------------------------------------------
 
+    rating_array = df['col_diff_ridge']
+    col_diff_ridge_df = standard_deviation(df, rating_array)
+
+    col_diff_ridge_fig: plt.Figure = plt.figure(figsize=(8, 3))
+
+    for index, row in col_diff_ridge_df.iterrows():
+        plt.plot(index, row['col_diff_ridge'], marker="o",
+                 color=row['color'], figure=col_diff_ridge_fig)
+
+    plot_trendline(rating_array, col_diff_ridge_fig)
+
+    plot_metadata('Color Difference Ridge', 'Fingeprint number',
+                  'Color difference', col_diff_ridge_fig)
+    figures['col_diff_ridge_rating'] = col_diff_ridge_fig
+
+    # --------------------------------------------------------------------
+
+    rating_array = df['col_diff_valley']
+    col_diff_valley_df = standard_deviation(df, rating_array)
+
+    col_diff_valley_fig: plt.Figure = plt.figure(figsize=(8, 3))
+
+    for index, row in col_diff_valley_df.iterrows():
+        plt.plot(index, row['col_diff_valley'], marker="o",
+                 color=row['color'], figure=col_diff_valley_fig)
+
+    plot_trendline(rating_array, col_diff_valley_fig)
+
+    plot_metadata('Color Difference Valley', 'Fingeprint number',
+                  'Color difference', col_diff_valley_fig)
+    figures['col_diff_valley_rating'] = col_diff_valley_fig
+
+    # --------------------------------------------------------------------
+
     rating_array = df['color_ratio']
     # df = df.sort_values(by='color_ratio')
     # # df = df[df['color_ratio'] > 0.98 ]
     # # df = df[df['color_ratio'] < 1.02 ]
-    # print(df[['image', 'color_ratio']])
+    # print(df[['image', 'color_ratio', 'col_diff_valley', 'col_diff_ridge']])
     # exit(2)
     color_ratio_df = standard_deviation(df, rating_array)
 
-    color_ratio_fig: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
+    color_ratio_fig: plt.Figure = plt.figure(figsize=(8, 3))
 
     for index, row in color_ratio_df.iterrows():
         plt.plot(index, row['color_ratio'], marker="o",
@@ -318,19 +355,18 @@ def main(args: argparse.ArgumentParser) -> None:
 
     plot_zero_line(color_ratio_df, 'color_ratio', color_ratio_fig)
 
-    plot_trendline(rating_array, color_ratio_fig)
     plt.axhline(y=1, color='r', linestyle='-',
                 label='Ideal value', figure=color_ratio_fig)
-    plot_metadata('Color Ratio', 'Fingeprint number',
+    plot_metadata('Color Difference Ratio', 'Fingeprint number',
                   'Color difference', color_ratio_fig)
-    figures['color_ratio'] = color_ratio_fig
+    figures['color_ratio_rating'] = color_ratio_fig
 
     # --------------------------------------------------------------------
 
     rating_array = df['michelson']
     michelson_df = standard_deviation(df, rating_array)
 
-    michelson_fig: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
+    michelson_fig: plt.Figure = plt.figure(figsize=(8, 3))
 
     for index, row in michelson_df.iterrows():
         plt.plot(index, row['michelson'], marker="o",
@@ -347,7 +383,7 @@ def main(args: argparse.ArgumentParser) -> None:
     rating_array = df['papilary_ridges']
     num_rig_df = standard_deviation(df, rating_array)
 
-    num_rig_fig: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
+    num_rig_fig: plt.Figure = plt.figure(figsize=(8, 3))
 
     for index, row in num_rig_df.iterrows():
         plt.plot(index, row['papilary_ridges'], marker="o",
@@ -364,7 +400,7 @@ def main(args: argparse.ArgumentParser) -> None:
     rating_array = df['sin_s']
     sin_s_df = standard_deviation(df, rating_array)
 
-    sin_s_fig: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
+    sin_s_fig: plt.Figure = plt.figure(figsize=(8, 3))
 
     for index, row in sin_s_df.iterrows():
         plt.plot(index, row['sin_s'], marker="o",
@@ -383,7 +419,7 @@ def main(args: argparse.ArgumentParser) -> None:
     rating_array = df['thick']
     thick_df = standard_deviation(df, rating_array)
 
-    thick_fig: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
+    thick_fig: plt.Figure = plt.figure(figsize=(8, 3))
 
     for index, row in thick_df.iterrows():
         plt.plot(index, row['thick'], marker="o",
@@ -402,7 +438,7 @@ def main(args: argparse.ArgumentParser) -> None:
     rating_array = df['sin_s_core']
     sin_s_core_df = standard_deviation(df, rating_array)
 
-    sin_s_core_fig: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
+    sin_s_core_fig: plt.Figure = plt.figure(figsize=(8, 3))
 
     for index, row in sin_s_core_df.iterrows():
         plt.plot(index, row['sin_s_core'], marker="o",
@@ -421,7 +457,7 @@ def main(args: argparse.ArgumentParser) -> None:
     rating_array = df['thick_core']
     thick_core_df = standard_deviation(df, rating_array)
 
-    thick_core_fig: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
+    thick_core_fig: plt.Figure = plt.figure(figsize=(8, 3))
 
     for index, row in thick_core_df.iterrows():
         plt.plot(index, row['thick_core'], marker="o",
@@ -440,7 +476,7 @@ def main(args: argparse.ArgumentParser) -> None:
     rating_array = df['sin_s_gray']
     sin_s_gray_df = standard_deviation(df, rating_array)
 
-    sin_s_gray_fig: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
+    sin_s_gray_fig: plt.Figure = plt.figure(figsize=(8, 3))
 
     for index, row in sin_s_gray_df.iterrows():
         plt.plot(index, row['sin_s_core'], marker="o",
@@ -459,7 +495,7 @@ def main(args: argparse.ArgumentParser) -> None:
     rating_array = df['thick_gray']
     thick_gray_df = standard_deviation(df, rating_array)
 
-    thick_gray_fig: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
+    thick_gray_fig: plt.Figure = plt.figure(figsize=(8, 3))
 
     for index, row in thick_gray_df.iterrows():
         plt.plot(index, row['thick_gray'], marker="o",
@@ -478,7 +514,7 @@ def main(args: argparse.ArgumentParser) -> None:
     rating_array = df['sin_s_core_gray']
     sin_s_core_gray_df = standard_deviation(df, rating_array)
 
-    sin_s_core_gray_fig: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
+    sin_s_core_gray_fig: plt.Figure = plt.figure(figsize=(8, 3))
 
     for index, row in sin_s_core_gray_df.iterrows():
         plt.plot(index, row['sin_s_core_gray'], marker="o",
@@ -499,7 +535,7 @@ def main(args: argparse.ArgumentParser) -> None:
     rating_array = df['thick_core_gray']
     thick_core_gray_df = standard_deviation(df, rating_array)
 
-    thick_core_gray_fig: plt.Figure = plt.figure(figsize=(22, 5), dpi=150)
+    thick_core_gray_fig: plt.Figure = plt.figure(figsize=(8, 3))
 
     for index, row in thick_core_gray_df.iterrows():
         plt.plot(index, row['thick_core_gray'], marker="o",
@@ -517,9 +553,19 @@ def main(args: argparse.ArgumentParser) -> None:
 
     # --------------------------------------------------------------------
 
-    save_fig(figures, output_path, '.jpeg')
+    save_fig(figures, output_path, '.pgf')
 
+
+def mathplotlib_settings():
+    matplotlib.use("pgf")
+    matplotlib.rcParams.update({
+        "pgf.texsystem": "pdflatex",
+        'font.family': 'serif',
+        'text.usetex': True,
+        'pgf.rcfonts': False,
+    })
 
 if __name__ == "__main__":
     args = argument_parse()
+    mathplotlib_settings()
     main(args)

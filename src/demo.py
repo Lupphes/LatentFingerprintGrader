@@ -166,7 +166,18 @@ def main(args: argparse.ArgumentParser) -> None:
                     path_img_des_dir, '.jpeg')  # args.ext
 
 
+def mathplotlib_settings():
+    import matplotlib
+    matplotlib.use("pgf")
+    matplotlib.rcParams.update({
+        "pgf.texsystem": "pdflatex",
+        'font.family': 'serif',
+        'text.usetex': True,
+        'pgf.rcfonts': False,
+    })
+
 if __name__ == "__main__":
     args = argument_parse()
     set_envinronment(args)
+    mathplotlib_settings()
     main(args)

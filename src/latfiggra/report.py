@@ -29,7 +29,7 @@ class Report:
             # 'minutiae_points': minutiae_points
         }
 
-    def report_contrast(self, rmse_ridge: np.float64, rmse_valley: np.float64, rmse_ratio: np.float64, color_ratio: np.float64, michelson_contrast: np.float64) -> None:
+    def report_contrast(self, rmse_ridge: np.float64, rmse_valley: np.float64, rmse_ratio: np.float64, col_diff_ridge: np.float64, col_diff_valley :np.float64, color_ratio: np.float64, michelson_contrast: np.float64) -> None:
         col_diff_description = ''
 
         if color_ratio > ColorDifferenceThreshold.VALID:
@@ -41,6 +41,8 @@ class Report:
             'rmse_ridge': float(rmse_ridge),
             'rmse_valley': float(rmse_valley),
             'rmse_ratio': float(rmse_ratio),
+            'col_diff_ridge': float(col_diff_ridge),
+            'col_diff_valley': float(col_diff_valley),
             'color_ratio': float(color_ratio),
             'michelson_contrast_pct': float(michelson_contrast)
             # 'description': col_diff_description
