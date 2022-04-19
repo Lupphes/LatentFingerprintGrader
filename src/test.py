@@ -4,6 +4,7 @@
 import argparse
 from pathlib import Path
 from enum import IntEnum
+from turtle import color
 import numpy as np
 from matplotlib import pyplot as plt
 import matplotlib
@@ -210,7 +211,6 @@ def save_fig(dictionary: Dict, path: Path, ext: str) -> None:
 
     for variant in dictionary:
         fname = path / f"{variant}{ext}"
-        dictionary[variant].set_size_inches(w=8, h=3.5)
         dictionary[variant].savefig(fname)
 
 
@@ -229,329 +229,63 @@ def main(args: argparse.ArgumentParser) -> None:
 
     figures = {}
 
-    # --------------------------------------------------------------------
+    def prepare_data(df, type:str, title:str, y_label: str, line=None):
+        mp_df = standard_deviation(df, df[type])
+        mp_df = mp_df[[type,'image_class']]
+        fig = plt.figure(figsize=(5, 3))
+        data = [
+            mp_df.loc[mp_df['image_class'] == Classification.GOOD][type],
+            mp_df.loc[mp_df['image_class'] == Classification.BAD][type],
+            mp_df.loc[mp_df['image_class'] == Classification.UGLY][type],
+        ]
+        test = plt.boxplot(data, patch_artist=True)
+        plt.xticks([1, 2, 3], ["Good", "Bad", "Ugly"], figure=fig)
+        
+        colors = [u'lightgreen', u'sandybrown', u'indianred']
+        for patch, color in zip(test['boxes'], colors):
+            patch.set_facecolor(color)
+        for median in test['medians']:
+            median.set_color('black')
 
-    rating_array = df['minutiae_points']
-    minutiae_points_df = standard_deviation(df, rating_array)
+        if line is not None:
+            plt.axhline(y=1, color='r', linestyle='-', label='Ideal value', figure=fig)
 
-    minutiae_point_fig: plt.Figure = plt.figure(figsize=(8, 3))
+        plt.title(title, figure=fig)
+        plt.ylabel(y_label, fontsize='small', figure=fig)
+        plt.close()
 
-    for index, row in minutiae_points_df.iterrows():
-        plt.plot(index, row['minutiae_points'], marker="o",
-                 color=row['color'], figure=minutiae_point_fig)
-
-    plot_trendline(rating_array, minutiae_point_fig)
-
-    plot_metadata('Minutia points', 'Fingeprint number',
-                  'Number of minutiae', minutiae_point_fig)
-    figures['minutiae_points_rating'] = minutiae_point_fig
-
-    # --------------------------------------------------------------------
-
-    rating_array = df['rmse_ratio']
-    rmse_ratio_df = standard_deviation(df, rating_array)
-    # df = df.sort_values(by='rmse_ratio')
-    # print(df[['image', 'rmse_ratio']])
-    # exit(2)
-    rmse_ratio_fig: plt.Figure = plt.figure(figsize=(8, 3))
-
-    for index, row in rmse_ratio_df.iterrows():
-        plt.plot(index, row['rmse_ratio'], marker="o",
-                 color=row['color'], figure=rmse_ratio_fig)
-
-    plot_trendline(rating_array, rmse_ratio_fig)
-
-    plot_metadata('Root Mean Square Error Ratio', 'Fingeprint number',
-                  'Root Mean Square Error value', rmse_ratio_fig)
-    figures['rmse_ratio_rating'] = rmse_ratio_fig
+        return fig
 
     # --------------------------------------------------------------------
+    figures['minutiae_points_rating'] = prepare_data(df, 'minutiae_points', 'Minutia points', 'Number of minutiae')
 
-    rating_array = df['rmse_valley']
-    rmse_valley_df = standard_deviation(df, rating_array)
-    # df.sort_values(by='rmse_valley')
-    # print(df['rmse_valley'])
-    # exit(2)
-    rmse_valley_fig: plt.Figure = plt.figure(figsize=(8, 3))
+    figures['number_of_ridges_rating'] = prepare_data(df, 'papilary_ridges', 'Number of ridges', 'Ridge count')
 
-    for index, row in rmse_valley_df.iterrows():
-        plt.plot(index, row['rmse_valley'], marker="o",
-                 color=row['color'], figure=rmse_valley_fig)
+    figures['michelson_rating'] = prepare_data(df, 'michelson', 'Michelson\'s contrast', 'Contrast value')
 
-    plot_trendline(rating_array, rmse_valley_fig)
+    figures['col_diff_ridge_rating'] = prepare_data(df, 'col_diff_ridge', 'Color Difference of ridges', 'Mean color difference')
 
-    plot_metadata('Root Mean Square Error Valley', 'Fingeprint number',
-                  'Root Mean Square Error value', rmse_valley_fig)
-    figures['rmse_valley_rating'] = rmse_valley_fig
+    figures['col_diff_valley_rating'] = prepare_data(df, 'col_diff_valley', 'Color Difference of valleys', 'Mean color difference')
+
+    figures['color_ratio_rating']  = prepare_data(df, 'color_ratio', 'Color Difference Ratio', 'Color difference', line=1)
+
+    figures['rmse_ratio_rating'] = prepare_data(df, 'rmse_ratio', 'Root Mean Square Error Ratio', 'Root Mean Square Error value')
+
+    figures['rmse_valley_rating'] = prepare_data(df, 'rmse_valley', 'Root Mean Square Error Valley', 'Root Mean Square Error value')
+
+    figures['rmse_ridge_rating'] = prepare_data(df, 'rmse_ridge', 'Root Mean Square Error Ridges', 'Root Mean Square Error value')
 
     # --------------------------------------------------------------------
 
-    rating_array = df['rmse_ridge']
-    rmse_ridge_df = standard_deviation(df, rating_array)
-    # df.sort_values(by='rmse_ridge')
-    # print(df['rmse_ridge'])
-    # exit(2)
-    rmse_ridge_fig: plt.Figure = plt.figure(figsize=(8, 3))
-
-    for index, row in rmse_ridge_df.iterrows():
-        plt.plot(index, row['rmse_ridge'], marker="o",
-                 color=row['color'], figure=rmse_ridge_fig)
-
-    plot_trendline(rating_array, rmse_ridge_fig)
-
-    plot_metadata('Root Mean Square Error Ridges', 'Fingeprint number',
-                  'Root Mean Square Error value', rmse_ridge_fig)
-    figures['rmse_ridge_rating'] = rmse_ridge_fig
-
-    # --------------------------------------------------------------------
-
-    rating_array = df['col_diff_ridge']
-    col_diff_ridge_df = standard_deviation(df, rating_array)
-
-    col_diff_ridge_fig: plt.Figure = plt.figure(figsize=(8, 3))
-
-    for index, row in col_diff_ridge_df.iterrows():
-        plt.plot(index, row['col_diff_ridge'], marker="o",
-                 color=row['color'], figure=col_diff_ridge_fig)
-
-    plot_trendline(rating_array, col_diff_ridge_fig)
-
-    plot_metadata('Color Difference Ridge', 'Fingeprint number',
-                  'Color difference', col_diff_ridge_fig)
-    figures['col_diff_ridge_rating'] = col_diff_ridge_fig
-
-    # --------------------------------------------------------------------
-
-    rating_array = df['col_diff_valley']
-    col_diff_valley_df = standard_deviation(df, rating_array)
-
-    col_diff_valley_fig: plt.Figure = plt.figure(figsize=(8, 3))
-
-    for index, row in col_diff_valley_df.iterrows():
-        plt.plot(index, row['col_diff_valley'], marker="o",
-                 color=row['color'], figure=col_diff_valley_fig)
-
-    plot_trendline(rating_array, col_diff_valley_fig)
-
-    plot_metadata('Color Difference Valley', 'Fingeprint number',
-                  'Color difference', col_diff_valley_fig)
-    figures['col_diff_valley_rating'] = col_diff_valley_fig
-
-    # --------------------------------------------------------------------
-
-    rating_array = df['color_ratio']
-    # df = df.sort_values(by='color_ratio')
-    # # df = df[df['color_ratio'] > 0.98 ]
-    # # df = df[df['color_ratio'] < 1.02 ]
-    # print(df[['image', 'color_ratio', 'col_diff_valley', 'col_diff_ridge']])
-    # exit(2)
-    color_ratio_df = standard_deviation(df, rating_array)
-
-    color_ratio_fig: plt.Figure = plt.figure(figsize=(8, 3))
-
-    for index, row in color_ratio_df.iterrows():
-        plt.plot(index, row['color_ratio'], marker="o",
-                 color=row['color'], figure=color_ratio_fig)
-
-    plot_zero_line(color_ratio_df, 'color_ratio', color_ratio_fig)
-
-    plt.axhline(y=1, color='r', linestyle='-',
-                label='Ideal value', figure=color_ratio_fig)
-    plot_metadata('Color Difference Ratio', 'Fingeprint number',
-                  'Color difference', color_ratio_fig)
-    figures['color_ratio_rating'] = color_ratio_fig
-
-    # --------------------------------------------------------------------
-
-    rating_array = df['michelson']
-    michelson_df = standard_deviation(df, rating_array)
-
-    michelson_fig: plt.Figure = plt.figure(figsize=(8, 3))
-
-    for index, row in michelson_df.iterrows():
-        plt.plot(index, row['michelson'], marker="o",
-                 color=row['color'], figure=michelson_fig)
-
-    plot_trendline(rating_array, michelson_fig)
-
-    plot_metadata('Michelson\'s contrast', 'Fingeprint number',
-                  'Contrast value', michelson_fig)
-    figures['michelson_rating'] = michelson_fig
-
-    # --------------------------------------------------------------------
-
-    rating_array = df['papilary_ridges']
-    num_rig_df = standard_deviation(df, rating_array)
-
-    num_rig_fig: plt.Figure = plt.figure(figsize=(8, 3))
-
-    for index, row in num_rig_df.iterrows():
-        plt.plot(index, row['papilary_ridges'], marker="o",
-                 color=row['color'], figure=num_rig_fig)
-
-    plot_trendline(rating_array, num_rig_fig)
-
-    plot_metadata('Number of ridges', 'Fingeprint number',
-                  'Number of ridges', num_rig_fig)
-    figures['number_of_ridges_rating'] = num_rig_fig
-
-    # --------------------------------------------------------------------
-
-    rating_array = df['sin_s']
-    sin_s_df = standard_deviation(df, rating_array)
-
-    sin_s_fig: plt.Figure = plt.figure(figsize=(8, 3))
-
-    for index, row in sin_s_df.iterrows():
-        plt.plot(index, row['sin_s'], marker="o",
-                 color=row['color'], figure=sin_s_fig)
-
-    plot_zero_line(sin_s_df, 'sin_s', sin_s_fig)
-
-    plt.axhline(y=0, color='r', linestyle='-',
-                label='Ideal value', figure=sin_s_fig)
-    plot_metadata('Sinusoidal Crosscut AEC', 'Fingeprint number',
-                  'Sinusoidal deviance', sin_s_fig)
-    figures['sinusoidal_similarity_rating'] = sin_s_fig
-
-    # --------------------------------------------------------------------
-
-    rating_array = df['thick']
-    thick_df = standard_deviation(df, rating_array)
-
-    thick_fig: plt.Figure = plt.figure(figsize=(8, 3))
-
-    for index, row in thick_df.iterrows():
-        plt.plot(index, row['thick'], marker="o",
-                 color=row['color'], figure=thick_fig)
-
-    plot_zero_line(thick_df, 'thick', thick_fig)
-
-    plt.axhline(y=0, color='r', linestyle='-',
-                label='Ideal value', figure=thick_fig)
-    plot_metadata('Thickness AEC', 'Fingeprint number',
-                  'Thickness deviance', thick_fig)
-    figures['thickness_rating'] = thick_fig
-
-    # --------------------------------------------------------------------
-
-    rating_array = df['sin_s_core']
-    sin_s_core_df = standard_deviation(df, rating_array)
-
-    sin_s_core_fig: plt.Figure = plt.figure(figsize=(8, 3))
-
-    for index, row in sin_s_core_df.iterrows():
-        plt.plot(index, row['sin_s_core'], marker="o",
-                 color=row['color'], figure=sin_s_core_fig)
-
-    plot_zero_line(sin_s_core_df, 'sin_s_core', sin_s_core_fig)
-
-    plt.axhline(y=0, color='r', linestyle='-',
-                label='Ideal value', figure=sin_s_core_fig)
-    plot_metadata('Sinusoidal Crosscut Core AEC', 'Fingeprint number',
-                  'Sinusoidal deviance', sin_s_core_fig)
-    figures['sinusoidal_similarity_core_rating'] = sin_s_core_fig
-
-    # --------------------------------------------------------------------
-
-    rating_array = df['thick_core']
-    thick_core_df = standard_deviation(df, rating_array)
-
-    thick_core_fig: plt.Figure = plt.figure(figsize=(8, 3))
-
-    for index, row in thick_core_df.iterrows():
-        plt.plot(index, row['thick_core'], marker="o",
-                 color=row['color'], figure=thick_core_fig)
-
-    plot_zero_line(thick_core_df, 'thick_core', thick_core_fig)
-
-    plt.axhline(y=0, color='r', linestyle='-',
-                label='Ideal value', figure=thick_core_fig)
-    plot_metadata('Thickness Core AEC', 'Fingeprint number',
-                  'Thickness deviance', thick_core_fig)
-    figures['thickness_core_rating'] = thick_core_fig
-
-    # --------------------------------------------------------------------
-
-    rating_array = df['sin_s_gray']
-    sin_s_gray_df = standard_deviation(df, rating_array)
-
-    sin_s_gray_fig: plt.Figure = plt.figure(figsize=(8, 3))
-
-    for index, row in sin_s_gray_df.iterrows():
-        plt.plot(index, row['sin_s_core'], marker="o",
-                 color=row['color'], figure=sin_s_gray_fig)
-
-    plot_zero_line(sin_s_gray_df, 'sin_s_gray', sin_s_gray_fig)
-
-    plt.axhline(y=0, color='r', linestyle='-',
-                label='Ideal value', figure=sin_s_gray_fig)
-    plot_metadata('Sinusoidal Crosscut Grayscale', 'Fingeprint number',
-                  'Sinusoidal deviance', sin_s_gray_fig)
-    figures['sinusoidal_similarity_gray_rating'] = sin_s_gray_fig
-
-    # --------------------------------------------------------------------
-
-    rating_array = df['thick_gray']
-    thick_gray_df = standard_deviation(df, rating_array)
-
-    thick_gray_fig: plt.Figure = plt.figure(figsize=(8, 3))
-
-    for index, row in thick_gray_df.iterrows():
-        plt.plot(index, row['thick_gray'], marker="o",
-                 color=row['color'], figure=thick_gray_fig)
-
-    plot_zero_line(thick_gray_df, 'thick_gray', thick_gray_fig)
-
-    plt.axhline(y=0, color='r', linestyle='-',
-                label='Ideal value', figure=thick_gray_fig)
-    plot_metadata('Thickness Grayscale', 'Fingeprint number',
-                  'Thickness deviance', thick_gray_fig)
-    figures['thickness_gray_rating'] = thick_gray_fig
-
-    # --------------------------------------------------------------------
-
-    rating_array = df['sin_s_core_gray']
-    sin_s_core_gray_df = standard_deviation(df, rating_array)
-
-    sin_s_core_gray_fig: plt.Figure = plt.figure(figsize=(8, 3))
-
-    for index, row in sin_s_core_gray_df.iterrows():
-        plt.plot(index, row['sin_s_core_gray'], marker="o",
-                 color=row['color'], figure=sin_s_core_gray_fig)
-
-    plot_zero_line(
-        sin_s_core_gray_df, 'sin_s_core_gray', sin_s_core_gray_fig
-    )
-
-    plt.axhline(y=0, color='r', linestyle='-',
-                label='Ideal value', figure=sin_s_core_gray_fig)
-    plot_metadata('Sinusoidal Crosscut Core Grayscale', 'Fingeprint number',
-                  'Sinusoidal deviance', sin_s_core_gray_fig)
-    figures['sinusoidal_similarity_core_gray_rating'] = sin_s_core_gray_fig
-
-    # --------------------------------------------------------------------
-
-    rating_array = df['thick_core_gray']
-    thick_core_gray_df = standard_deviation(df, rating_array)
-
-    thick_core_gray_fig: plt.Figure = plt.figure(figsize=(8, 3))
-
-    for index, row in thick_core_gray_df.iterrows():
-        plt.plot(index, row['thick_core_gray'], marker="o",
-                 color=row['color'], figure=thick_core_gray_fig)
-
-    plot_zero_line(
-        thick_core_gray_df, 'thick_core_gray', thick_core_gray_fig
-    )
-
-    plt.axhline(y=0, color='r', linestyle='-',
-                label='Ideal value', figure=thick_core_gray_fig)
-    plot_metadata('Thickness Core Grayscale', 'Fingeprint number',
-                  'Thickness deviance', thick_core_gray_fig)
-    figures['thickness_core_gray_rating'] = thick_core_gray_fig
-
-    # --------------------------------------------------------------------
+    figures['sinusoidal_similarity_rating']  = prepare_data(df, 'sin_s', 'Sinusoidal Crosscut AEC', 'Sinusoidal deviance', line=0)
+    figures['thickness_rating']  = prepare_data(df, 'thick', 'Thickness AEC', 'Thickness deviance', line=0)
+    figures['sinusoidal_similarity_core_rating']  = prepare_data(df, 'sin_s_core', 'Sinusoidal Crosscut Core AEC', 'Sinusoidal deviance', line=0)
+    figures['thickness_core_rating']  = prepare_data(df, 'thick_core', 'Thickness Core AEC', 'Thickness deviance', line=0)
+
+    figures['sinusoidal_similarity_gray_rating']  = prepare_data(df, 'sin_s_gray', 'Sinusoidal Crosscut Grayscale', 'Sinusoidal deviance', line=0)
+    figures['thickness_gray_rating']  = prepare_data(df, 'thick_gray', 'Thickness Grayscale', 'Thickness deviance', line=0)
+    figures['sinusoidal_similarity_core_gray_rating']  = prepare_data(df, 'sin_s_core_gray', 'Sinusoidal Crosscut Core Grayscale', 'Sinusoidal deviance', line=0)
+    figures['thickness_core_gray_rating']  = prepare_data(df, 'thick_core_gray', 'Thickness Core Grayscale', 'Thickness deviance', line=0)
 
     save_fig(figures, output_path, '.pgf')
 
