@@ -479,7 +479,9 @@ def show_minutiae_sets(img, minutiae_sets, mask=None):
     if mask is not None:
         contours = measure.find_contours(mask, 0.8)
         for n, contour in enumerate(contours):
-            ax.plot(contour[:, 1], contour[:, 0], linewidth=2, color='dodgerblue')
+            ax.plot(contour[:, 1], contour[:, 0],
+                    linewidth=2, color='dodgerblue'
+                    )
 
     ax.imshow(img, cmap='gray')
     color = ['r', 'b', 'g']

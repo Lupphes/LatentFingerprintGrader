@@ -228,8 +228,8 @@ def main(args: argparse.ArgumentParser) -> None:
 
     figures = {}
 
-    def prepare_data(df, type:str, title:str, y_label: str, line=None):
-        mp_df = df[[type,'image_class']]
+    def prepare_data(df, type: str, title: str, y_label: str, line=None):
+        mp_df = df[[type, 'image_class']]
 
         good = mp_df.loc[mp_df['image_class'] == Classification.GOOD]
         bad = mp_df.loc[mp_df['image_class'] == Classification.BAD]
@@ -243,7 +243,7 @@ def main(args: argparse.ArgumentParser) -> None:
         ]
         test = plt.boxplot(data, patch_artist=True)
         plt.xticks([1, 2, 3], ["Good", "Bad", "Ugly"], figure=fig)
-        
+
         colors = [u'lightgreen', u'sandybrown', u'indianred']
         for patch, color in zip(test['boxes'], colors):
             patch.set_facecolor(color)
@@ -251,55 +251,86 @@ def main(args: argparse.ArgumentParser) -> None:
             median.set_color('black')
 
         if line is not None:
-            plt.axhline(y=1, color='r', linestyle='--', label='Ideal value', figure=fig)
+            plt.axhline(y=1, color='r', linestyle='--',
+                        label='Ideal value', figure=fig
+                        )
 
         plt.title(title, figure=fig)
         plt.ylabel(y_label, fontsize='small', figure=fig)
         plt.close()
 
         return fig
-        
+
     # df = df.dropna()
     # df = df.sort_values(by='color_ratio', ascending=False)
-    # # df = df[df["sin_s"] > -0.1] 
+    # # df = df[df["sin_s"] > -0.1]
     # # df = df[df["sin_s"] < 1.02]
     # print(df[["image","color_ratio", "col_diff_ridge", "col_diff_valley"]])
     # exit(0)
 
-    figures['minutiae_points_rating'] = prepare_data(df, 'minutiae_points', 'Minutiae points', 'Number of minutiae')
+    figures['minutiae_points_rating'] = prepare_data(
+        df, 'minutiae_points', 'Minutiae points', 'Number of minutiae'
+    )
 
-    figures['number_of_ridges_rating'] = prepare_data(df, 'papilary_ridges', 'Number of ridges', 'Ridge count')
+    figures['number_of_ridges_rating'] = prepare_data(
+        df, 'papilary_ridges', 'Number of ridges', 'Ridge count'
+    )
 
-    figures['michelson_rating'] = prepare_data(df, 'michelson', 'Michelson\'s contrast', 'Contrast value')
+    figures['michelson_rating'] = prepare_data(
+        df, 'michelson', 'Michelson\'s contrast', 'Contrast value'
+    )
 
-    figures['col_diff_ridge_rating'] = prepare_data(df, 'col_diff_ridge', 'Color difference of ridges', 'Mean color difference')
+    figures['col_diff_ridge_rating'] = prepare_data(
+        df, 'col_diff_ridge', 'Color difference of ridges', 'Mean color difference'
+    )
 
-    figures['col_diff_valley_rating'] = prepare_data(df, 'col_diff_valley', 'Color difference of valleys', 'Mean color difference')
+    figures['col_diff_valley_rating'] = prepare_data(
+        df, 'col_diff_valley', 'Color difference of valleys', 'Mean color difference'
+    )
 
-    figures['color_ratio_rating']  = prepare_data(df, 'color_ratio', 'Color difference ratio', 'Color difference', line=1)
+    figures['color_ratio_rating'] = prepare_data(
+        df, 'color_ratio', 'Color difference ratio', 'Color difference', line=1
+    )
 
-    figures['rmse_ratio_rating'] = prepare_data(df, 'rmse_ratio', 'Root Mean Square Error ratio', 'Root Mean Square Error value')
+    figures['rmse_ratio_rating'] = prepare_data(
+        df, 'rmse_ratio', 'Root Mean Square Error ratio', 'Root Mean Square Error value'
+    )
 
-    figures['rmse_valley_rating'] = prepare_data(df, 'rmse_valley', 'Root Mean Square Error valley', 'Root Mean Square Error value')
+    figures['rmse_valley_rating'] = prepare_data(
+        df, 'rmse_valley', 'Root Mean Square Error valley', 'Root Mean Square Error value'
+    )
 
-    figures['rmse_ridge_rating'] = prepare_data(df, 'rmse_ridge', 'Root Mean Square Error ridges', 'Root Mean Square Error value')
+    figures['rmse_ridge_rating'] = prepare_data(
+        df, 'rmse_ridge', 'Root Mean Square Error ridges', 'Root Mean Square Error value'
+    )
 
     # --------------------------------------------------------------------
 
-    figures['sinusoidal_similarity_rating']  = prepare_data(df, 'sin_s', '', 'Sinusoidal deviance', line=0)
-    figures['thickness_rating']  = prepare_data(df, 'thick', '', 'Thickness deviance', line=0)
-    figures['sinusoidal_similarity_core_rating']  = prepare_data(df, 'sin_s_core', '', 'Sinusoidal deviance', line=0)
-    figures['thickness_core_rating']  = prepare_data(df, 'thick_core', '', 'Thickness deviance', line=0)
+    figures['sinusoidal_similarity_rating'] = prepare_data(
+        df, 'sin_s', '', 'Sinusoidal deviance', line=0)
+    figures['thickness_rating'] = prepare_data(
+        df, 'thick', '', 'Thickness deviance', line=0)
+    figures['sinusoidal_similarity_core_rating'] = prepare_data(
+        df, 'sin_s_core', '', 'Sinusoidal deviance', line=0)
+    figures['thickness_core_rating'] = prepare_data(
+        df, 'thick_core', '', 'Thickness deviance', line=0)
 
-    figures['sinusoidal_similarity_gray_rating']  = prepare_data(df, 'sin_s_gray', '', 'Sinusoidal deviance', line=0)
-    figures['thickness_gray_rating']  = prepare_data(df, 'thick_gray', '', 'Thickness deviance', line=0)
-    figures['sinusoidal_similarity_core_gray_rating']  = prepare_data(df, 'sin_s_core_gray', '', 'Sinusoidal deviance', line=0)
-    figures['thickness_core_gray_rating']  = prepare_data(df, 'thick_core_gray', '', 'Thickness deviance', line=0)
-
+    figures['sinusoidal_similarity_gray_rating'] = prepare_data(
+        df, 'sin_s_gray', '', 'Sinusoidal deviance', line=0
+    )
+    figures['thickness_gray_rating'] = prepare_data(
+        df, 'thick_gray', '', 'Thickness deviance', line=0
+    )
+    figures['sinusoidal_similarity_core_gray_rating'] = prepare_data(
+        df, 'sin_s_core_gray', '', 'Sinusoidal deviance', line=0
+    )
+    figures['thickness_core_gray_rating'] = prepare_data(
+        df, 'thick_core_gray', '', 'Thickness deviance', line=0
+    )
 
     # --------------------------------------------------------------------
 
-    def line_chart(df, grade:Classification, title:str, x_label: str, y_label: str):
+    def line_chart(df, grade: Classification, title: str, x_label: str, y_label: str):
 
         mp_df = df[['col_diff_ridge', 'col_diff_valley', 'image_class', 'color']]
 
@@ -313,15 +344,22 @@ def main(args: argparse.ArgumentParser) -> None:
         ax.set_yticks(major_ticks)
 
         ax.grid(which='both')
-        ax.grid(which='major', alpha=0.5, linestyle=':',color='gray', linewidth=1)
+        ax.grid(which='major', alpha=0.5, linestyle=':',
+                color='gray', linewidth=1)
 
         for _, row in classified.iterrows():
-            plt.plot(row['col_diff_valley'],row['col_diff_ridge'], marker="o",
-                    color=row['color'], figure=fig)
+            plt.plot(row['col_diff_valley'], row['col_diff_ridge'], marker="o",
+                     color=row['color'], figure=fig)
 
-        plt.plot(np.linspace(0, 1, 2), color='blue', linestyle='-', label='Ideal ratio', figure=fig)
-        plt.axhline(y=0.5, color='black', linestyle='-', figure=fig, linewidth=1)
-        plt.axvline(x=0.5, color='black', linestyle='-', label='Box', figure=fig, linewidth=1)
+        plt.plot(np.linspace(0, 1, 2), color='blue',
+                 linestyle='-', label='Ideal ratio', figure=fig
+                 )
+        plt.axhline(y=0.5, color='black', linestyle='-',
+                    figure=fig, linewidth=1
+                    )
+        plt.axvline(x=0.5, color='black', linestyle='-',
+                    label='Box', figure=fig, linewidth=1
+                    )
 
         plt.title(title, figure=fig)
         plt.xlabel(x_label, fontsize='small', figure=fig)
@@ -332,10 +370,12 @@ def main(args: argparse.ArgumentParser) -> None:
 
         return fig
 
-    figures['ratio_good_rating'] = line_chart(df, Classification.GOOD, 'Color difference ratio – Good', 'Valley mean color', 'Ridge mean color')
-    figures['ratio_bad_rating'] = line_chart(df, Classification.BAD, 'Color difference ratio – Bad', 'Valley mean color', 'Ridge mean color')
-    figures['ratio_ugly_rating'] = line_chart(df, Classification.UGLY, 'Color difference ratio – Ugly', 'Valley mean color', 'Ridge mean color')
-
+    figures['ratio_good_rating'] = line_chart(
+        df, Classification.GOOD, 'Color difference ratio – Good', 'Valley mean color', 'Ridge mean color')
+    figures['ratio_bad_rating'] = line_chart(
+        df, Classification.BAD, 'Color difference ratio – Bad', 'Valley mean color', 'Ridge mean color')
+    figures['ratio_ugly_rating'] = line_chart(
+        df, Classification.UGLY, 'Color difference ratio – Ugly', 'Valley mean color', 'Ridge mean color')
 
     save_fig(figures, output_path, '.pgf')
 
@@ -348,6 +388,7 @@ def mathplotlib_settings():
         'text.usetex': True,
         'pgf.rcfonts': False,
     })
+
 
 if __name__ == "__main__":
     args = argument_parse()

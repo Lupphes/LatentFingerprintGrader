@@ -176,6 +176,7 @@ def mathplotlib_settings():
         'pgf.rcfonts': False,
     })
 
+
 if __name__ == "__main__":
     args = argument_parse()
     set_envinronment(args)

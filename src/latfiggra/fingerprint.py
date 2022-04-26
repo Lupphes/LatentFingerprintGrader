@@ -24,6 +24,7 @@ class Fingerprint:
     Parses, enhances and grades fingeprint image
     🦊 🐺 🦌 🐕
     """
+
     def __init__(self, path, ppi):
         self.name: str = Path(path).name
         self.ppi: int = ppi
@@ -204,11 +205,15 @@ class Fingerprint:
         inverted_mask = Image(self.mask_filled.image)
         inverted_mask.invert_binary()
 
-        mask_ridges = Image(cv2.bitwise_or(inverted_mask.image, self.bin_image.image))
+        mask_ridges = Image(cv2.bitwise_or(
+            inverted_mask.image, self.bin_image.image)
+        )
 
         mask_valleys = Image(self.bin_image.image)
         mask_valleys.invert_binary()
-        mask_valleys = Image(cv2.bitwise_or(inverted_mask.image, mask_valleys.image))
+        mask_valleys = Image(cv2.bitwise_or(
+            inverted_mask.image, mask_valleys.image)
+        )
 
         # Extracted them from the image
         extracted_ridges: Image = Image(self.grayscale_clahe.image)
@@ -219,11 +224,15 @@ class Fingerprint:
 
         mask_ridges_bin = Image(mask_ridges.image / 255)
         mask_valleys_bin = Image(mask_valleys.image / 255)
-        
-        masked_array_ridges = ma.masked_array(extracted_ridges.image, mask=mask_valleys_bin.image)
+
+        masked_array_ridges = ma.masked_array(
+            extracted_ridges.image, mask=mask_valleys_bin.image
+        )
         masked_extracted_ridges = masked_array_ridges[~masked_array_ridges.mask]
 
-        masked_array_valleys = ma.masked_array(extracted_valleys.image, mask=mask_ridges_bin.image)
+        masked_array_valleys = ma.masked_array(
+            extracted_valleys.image, mask=mask_ridges_bin.image
+        )
         masked_extracted_valleys = masked_array_valleys[~masked_array_valleys.mask]
 
         extracted_ridges_bin = masked_extracted_ridges / 255
@@ -237,16 +246,19 @@ class Fingerprint:
 
         if mean_trans_extracted_valleys_bin == 0:
             color_ratio = np.finfo(np.float64).max
-        elif mean_extracted_ridges_bin== 0:
+        elif mean_extracted_ridges_bin == 0:
             color_ratio = 0
         else:
             color_ratio = mean_extracted_ridges_bin / mean_trans_extracted_valleys_bin
 
         # Root Mean Square Error
         # Calculates the difference between colours of ridges and valleys
-        rmse_ridge: np.float64 = np.mean(np.square(np.subtract(masked_extracted_ridges, np.full(masked_extracted_ridges.shape, 255))))
-        rmse_valley: np.float64 = np.mean(np.square(np.subtract(masked_extracted_valleys, np.full(masked_extracted_valleys.shape, 0))))
-
+        rmse_ridge: np.float64 = np.mean(np.square(np.subtract(
+            masked_extracted_ridges, np.full(masked_extracted_ridges.shape, 255)))
+        )
+        rmse_valley: np.float64 = np.mean(np.square(np.subtract(
+            masked_extracted_valleys, np.full(masked_extracted_valleys.shape, 0)))
+        )
 
         # NRMSE (Normalized Root Mean Square Error) <0,1>
         rmse_ridge = np.sqrt(rmse_ridge) / 255
@@ -265,8 +277,8 @@ class Fingerprint:
 
         if not name in self.image_dict:
             self.image_dict[name] = {}
-        
-        extracted_ridges_save =  Image(extracted_ridges.image)
+
+        extracted_ridges_save = Image(extracted_ridges.image)
         extracted_ridges_save.apply_mask(self.mask_filled)
 
         extracted_valleys_save = Image(extracted_valleys.image)
@@ -275,7 +287,14 @@ class Fingerprint:
         self.image_dict[name]['rmse_valleys'] = extracted_valleys_save
         self.image_dict[name]['rmse_ridges'] = extracted_ridges_save
 
-        self.report.report_contrast(rmse_ridge * 100, rmse_valley * 100, rmse_mean, mean_extracted_ridges_bin, mean_trans_extracted_valleys_bin, color_ratio, michelson_contrast)
+        self.report.report_contrast(
+            rmse_ridge * 100,
+            rmse_valley * 100,
+            rmse_mean,
+            mean_extracted_ridges_bin,
+            mean_trans_extracted_valleys_bin,
+            color_ratio, michelson_contrast
+        )
 
     def remove_black_array(self, array, black_threshold=10) -> npt.NDArray:
         # Remove masked parts
@@ -615,7 +634,9 @@ class Fingerprint:
 
         if draw:
             fig_sinus_all: plt.Figure = plt.figure(figsize=(6.2, 2), dpi=150)
-            plt.title('Sinus similarity – whole sinusoidal wave aligned to all ridges')
+            plt.title(
+                'Sinus similarity – whole sinusoidal wave aligned to all ridges'
+            )
             plt.plot(line_signal, label='Ridges all', figure=fig_sinus_all)
             plt.plot(best_sin, label='Sinus all', figure=fig_sinus_all)
             plt.plot(local_max, points_y, 'o', color='green')
@@ -626,7 +647,7 @@ class Fingerprint:
             plt.ylabel('Grayscale values (Y)',
                        fontsize='small', figure=fig_sinus_all)
             plt.legend(fontsize='small', loc='upper right')
-            
+
             plt.close()
             if not name in self.figure_dict:
                 self.figure_dict[name] = {}
@@ -645,7 +666,7 @@ class Fingerprint:
             plt.ylabel('Grayscale values (Y)', fontsize='small',
                        figure=fig_sin_overview)
             plt.legend(fontsize='small', loc='upper right')
-            
+
             plt.close()
             self.figure_dict[name]['sin_overview'] = fig_sin_overview
 
@@ -684,7 +705,7 @@ class Fingerprint:
                 plt.ylabel('Grayscale values (Y)',
                            fontsize='small', figure=fig_sin_one)
                 plt.legend(fontsize='small', loc='upper right')
-                
+
                 fig_sin_one.savefig(f'{self.name}_one_{i}.png')
                 plt.close()
 
@@ -701,7 +722,7 @@ class Fingerprint:
             plt.ylabel('Grayscale values (Y)', fontsize='small',
                        figure=fig_sin_optimalised)
             plt.legend(fontsize='small', loc='upper right')
-            
+
             plt.close()
             self.figure_dict[name]['sin_optimalised'] = fig_sin_optimalised
 
@@ -754,7 +775,7 @@ class Fingerprint:
             plt.ylabel('Grayscale values (Y)',
                        fontsize='small', figure=fig_thickness)
             plt.legend(fontsize='small', loc='upper right')
-            
+
             plt.close()
             if not name in self.figure_dict:
                 self.figure_dict[name] = {}
@@ -825,7 +846,7 @@ class Fingerprint:
             plt.ylabel('Grayscale values (Y)',
                        fontsize='small', figure=fig_ridge_optimalised)
             plt.legend(fontsize='small', loc='upper right')
-            
+
             plt.close()
             self.figure_dict[name]['ridge_optimalised'] = fig_ridge_optimalised
 

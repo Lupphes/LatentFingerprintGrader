@@ -42,7 +42,9 @@ class MinutiaeExtraction(ImportGraph):
         self.weight = get_weights(self.SHAPE, self.SHAPE, 12, sigma=None)
         print(model_dir)
         if not model_dir.exists():
-            raise FileNotFoundError(f'{model_dir} folder was not found. Check your model directory')
+            raise FileNotFoundError(
+                f'{model_dir} folder was not found. Check your model directory'
+            )
         super().load_graph(model_dir)
         self.shape = self.phase_train_placeholder.get_shape()
 
@@ -167,7 +169,7 @@ class AutoEncoder(ImportGraph):
 
         minutiae_cylinder = np.zeros((h, w, 1))
         for i in range(n):
-            minutiae_cylinder[y[i]:y[i] + self.SHAPE, x[i]:x[i] + self.SHAPE, :] = minutiae_cylinder[y[i]                                                                                                     :y[i] + self.SHAPE, x[i]:x[i] + self.SHAPE, :] + minutiae_cylinder_array[i] * self.weight
+            minutiae_cylinder[y[i]:y[i] + self.SHAPE, x[i]:x[i] + self.SHAPE, :] = minutiae_cylinder[y[i]:y[i] + self.SHAPE, x[i]:x[i] + self.SHAPE, :] + minutiae_cylinder_array[i] * self.weight
 
         minutiae_cylinder = minutiae_cylinder[:, :, 0]
         minV = np.min(minutiae_cylinder)
