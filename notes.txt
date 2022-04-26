@@ -105,7 +105,7 @@ Zmirnit kategorii -> teziste - asi taky done, uvidime, ted uz je to easy to do
 
 
 # -------------- Co probrat 19.4
-Mam aktualni release. Kdy a jak muzu zverejnit
+
 Odtranene `papillary` vsude
 Vice se zamerit na text
 Ukazat kontrastni obrazky
@@ -113,3 +113,10 @@ Ukazat kontrastni obrazky
 
 Kod:
 Zkusit to same u RMSE
+
+
+# -------------- Co probrat 31.4
+Mam aktualni release. Kdy a jak muzu zverejnit
+Citace na sebe?
+Muzu prilozit databazi?
+Citace staci?

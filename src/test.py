@@ -4,7 +4,6 @@
 import argparse
 from pathlib import Path
 from enum import IntEnum
-from turtle import color
 import numpy as np
 from matplotlib import pyplot as plt
 import matplotlib
@@ -142,16 +141,16 @@ def json2pandas(log_file_path: Path) -> pd.DataFrame:
     return df
 
 
-def plot_trendline(rating_array: pd.DataFrame, figure: plt.Figure) -> None:
+def plot_trendline(first: pd.DataFrame, second: pd.DataFrame, figure: plt.Figure) -> None:
     """
     Plot trendline based on the least squares polynomial fit 
     of the first degree
     """
-    rating_array = rating_array.dropna()
-    rating_len = len(rating_array)
-    z = np.polyfit(np.arange(rating_len), rating_array, 1)
+    first = first.dropna()
+    second = second.dropna()
+    z = np.polyfit(first, second, 1)
     p = np.poly1d(z)
-    plt.plot(np.arange(rating_len), p(np.arange(rating_len)),
+    plt.plot(first, p(second),
              "r--", figure=figure, label="Trendline")
 
 
@@ -160,8 +159,8 @@ def plot_metadata(title, x_label: str, y_label: str, figure: plt.Figure) -> None
     Data for the plot to generate nice charts
     """
 
-    color_legend = {'Good': u'green', 'Bad': u'orange',
-                    'Ugly': u'red'}  # , 'Unknown': u'black'
+    color_legend = {'Good': u'lightgreen', 'Bad': u'sandybrown',
+                    'Ugly': u'indianred'}  # , 'Unknown': u'black'
 
     plt.title(title)
     plt.xlabel(x_label, fontsize='small', figure=figure)
@@ -230,13 +229,17 @@ def main(args: argparse.ArgumentParser) -> None:
     figures = {}
 
     def prepare_data(df, type:str, title:str, y_label: str, line=None):
-        mp_df = standard_deviation(df, df[type])
-        mp_df = mp_df[[type,'image_class']]
+        mp_df = df[[type,'image_class']]
+
+        good = mp_df.loc[mp_df['image_class'] == Classification.GOOD]
+        bad = mp_df.loc[mp_df['image_class'] == Classification.BAD]
+        ugly = mp_df.loc[mp_df['image_class'] == Classification.UGLY]
+
         fig = plt.figure(figsize=(5, 3))
         data = [
-            mp_df.loc[mp_df['image_class'] == Classification.GOOD][type],
-            mp_df.loc[mp_df['image_class'] == Classification.BAD][type],
-            mp_df.loc[mp_df['image_class'] == Classification.UGLY][type],
+            standard_deviation(good, good[type])[type],
+            standard_deviation(bad, bad[type])[type],
+            standard_deviation(ugly, ugly[type])[type]
         ]
         test = plt.boxplot(data, patch_artist=True)
         plt.xticks([1, 2, 3], ["Good", "Bad", "Ugly"], figure=fig)
@@ -248,44 +251,91 @@ def main(args: argparse.ArgumentParser) -> None:
             median.set_color('black')
 
         if line is not None:
-            plt.axhline(y=1, color='r', linestyle='-', label='Ideal value', figure=fig)
+            plt.axhline(y=1, color='r', linestyle='--', label='Ideal value', figure=fig)
 
         plt.title(title, figure=fig)
         plt.ylabel(y_label, fontsize='small', figure=fig)
         plt.close()
 
         return fig
+        
+    # df = df.dropna()
+    # df = df.sort_values(by='color_ratio', ascending=False)
+    # # df = df[df["sin_s"] > -0.1] 
+    # # df = df[df["sin_s"] < 1.02]
+    # print(df[["image","color_ratio", "col_diff_ridge", "col_diff_valley"]])
+    # exit(0)
 
-    # --------------------------------------------------------------------
-    figures['minutiae_points_rating'] = prepare_data(df, 'minutiae_points', 'Minutia points', 'Number of minutiae')
+    figures['minutiae_points_rating'] = prepare_data(df, 'minutiae_points', 'Minutiae points', 'Number of minutiae')
 
     figures['number_of_ridges_rating'] = prepare_data(df, 'papilary_ridges', 'Number of ridges', 'Ridge count')
 
     figures['michelson_rating'] = prepare_data(df, 'michelson', 'Michelson\'s contrast', 'Contrast value')
 
-    figures['col_diff_ridge_rating'] = prepare_data(df, 'col_diff_ridge', 'Color Difference of ridges', 'Mean color difference')
+    figures['col_diff_ridge_rating'] = prepare_data(df, 'col_diff_ridge', 'Color difference of ridges', 'Mean color difference')
 
-    figures['col_diff_valley_rating'] = prepare_data(df, 'col_diff_valley', 'Color Difference of valleys', 'Mean color difference')
+    figures['col_diff_valley_rating'] = prepare_data(df, 'col_diff_valley', 'Color difference of valleys', 'Mean color difference')
 
-    figures['color_ratio_rating']  = prepare_data(df, 'color_ratio', 'Color Difference Ratio', 'Color difference', line=1)
+    figures['color_ratio_rating']  = prepare_data(df, 'color_ratio', 'Color difference ratio', 'Color difference', line=1)
 
-    figures['rmse_ratio_rating'] = prepare_data(df, 'rmse_ratio', 'Root Mean Square Error Ratio', 'Root Mean Square Error value')
+    figures['rmse_ratio_rating'] = prepare_data(df, 'rmse_ratio', 'Root Mean Square Error ratio', 'Root Mean Square Error value')
 
-    figures['rmse_valley_rating'] = prepare_data(df, 'rmse_valley', 'Root Mean Square Error Valley', 'Root Mean Square Error value')
+    figures['rmse_valley_rating'] = prepare_data(df, 'rmse_valley', 'Root Mean Square Error valley', 'Root Mean Square Error value')
 
-    figures['rmse_ridge_rating'] = prepare_data(df, 'rmse_ridge', 'Root Mean Square Error Ridges', 'Root Mean Square Error value')
+    figures['rmse_ridge_rating'] = prepare_data(df, 'rmse_ridge', 'Root Mean Square Error ridges', 'Root Mean Square Error value')
 
     # --------------------------------------------------------------------
 
-    figures['sinusoidal_similarity_rating']  = prepare_data(df, 'sin_s', 'Sinusoidal Crosscut AEC', 'Sinusoidal deviance', line=0)
-    figures['thickness_rating']  = prepare_data(df, 'thick', 'Thickness AEC', 'Thickness deviance', line=0)
-    figures['sinusoidal_similarity_core_rating']  = prepare_data(df, 'sin_s_core', 'Sinusoidal Crosscut Core AEC', 'Sinusoidal deviance', line=0)
-    figures['thickness_core_rating']  = prepare_data(df, 'thick_core', 'Thickness Core AEC', 'Thickness deviance', line=0)
+    figures['sinusoidal_similarity_rating']  = prepare_data(df, 'sin_s', '', 'Sinusoidal deviance', line=0)
+    figures['thickness_rating']  = prepare_data(df, 'thick', '', 'Thickness deviance', line=0)
+    figures['sinusoidal_similarity_core_rating']  = prepare_data(df, 'sin_s_core', '', 'Sinusoidal deviance', line=0)
+    figures['thickness_core_rating']  = prepare_data(df, 'thick_core', '', 'Thickness deviance', line=0)
 
-    figures['sinusoidal_similarity_gray_rating']  = prepare_data(df, 'sin_s_gray', 'Sinusoidal Crosscut Grayscale', 'Sinusoidal deviance', line=0)
-    figures['thickness_gray_rating']  = prepare_data(df, 'thick_gray', 'Thickness Grayscale', 'Thickness deviance', line=0)
-    figures['sinusoidal_similarity_core_gray_rating']  = prepare_data(df, 'sin_s_core_gray', 'Sinusoidal Crosscut Core Grayscale', 'Sinusoidal deviance', line=0)
-    figures['thickness_core_gray_rating']  = prepare_data(df, 'thick_core_gray', 'Thickness Core Grayscale', 'Thickness deviance', line=0)
+    figures['sinusoidal_similarity_gray_rating']  = prepare_data(df, 'sin_s_gray', '', 'Sinusoidal deviance', line=0)
+    figures['thickness_gray_rating']  = prepare_data(df, 'thick_gray', '', 'Thickness deviance', line=0)
+    figures['sinusoidal_similarity_core_gray_rating']  = prepare_data(df, 'sin_s_core_gray', '', 'Sinusoidal deviance', line=0)
+    figures['thickness_core_gray_rating']  = prepare_data(df, 'thick_core_gray', '', 'Thickness deviance', line=0)
+
+
+    # --------------------------------------------------------------------
+
+    def line_chart(df, grade:Classification, title:str, x_label: str, y_label: str):
+
+        mp_df = df[['col_diff_ridge', 'col_diff_valley', 'image_class', 'color']]
+
+        classified = mp_df.loc[mp_df['image_class'] == grade]
+        fig = plt.figure(figsize=(5, 5))
+        ax = fig.add_subplot(1, 1, 1)
+
+        major_ticks = np.arange(0, 1.1, 0.1)
+
+        ax.set_xticks(major_ticks)
+        ax.set_yticks(major_ticks)
+
+        ax.grid(which='both')
+        ax.grid(which='major', alpha=0.5, linestyle=':',color='gray', linewidth=1)
+
+        for _, row in classified.iterrows():
+            plt.plot(row['col_diff_valley'],row['col_diff_ridge'], marker="o",
+                    color=row['color'], figure=fig)
+
+        plt.plot(np.linspace(0, 1, 2), color='blue', linestyle='-', label='Ideal ratio', figure=fig)
+        plt.axhline(y=0.5, color='black', linestyle='-', figure=fig, linewidth=1)
+        plt.axvline(x=0.5, color='black', linestyle='-', label='Box', figure=fig, linewidth=1)
+
+        plt.title(title, figure=fig)
+        plt.xlabel(x_label, fontsize='small', figure=fig)
+        plt.ylabel(y_label, fontsize='small', figure=fig)
+        plt.xlim(0, 1)
+        plt.ylim(0, 1)
+        plt.close()
+
+        return fig
+
+    figures['ratio_good_rating'] = line_chart(df, Classification.GOOD, 'Color difference ratio – Good', 'Valley mean color', 'Ridge mean color')
+    figures['ratio_bad_rating'] = line_chart(df, Classification.BAD, 'Color difference ratio – Bad', 'Valley mean color', 'Ridge mean color')
+    figures['ratio_ugly_rating'] = line_chart(df, Classification.UGLY, 'Color difference ratio – Ugly', 'Valley mean color', 'Ridge mean color')
+
 
     save_fig(figures, output_path, '.pgf')
 

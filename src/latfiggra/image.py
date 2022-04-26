@@ -125,6 +125,7 @@ class Image:
             for algorithm in dictionary[variant]:
                 fname = os.path.join(
                     path, f"{name}_{algorithm}_{variant}{ext}")
+                dictionary[variant][algorithm].tight_layout()
                 dictionary[variant][algorithm].savefig(fname)
 
     @staticmethod

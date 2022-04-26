@@ -299,6 +299,8 @@ class LatentExtractionModel:
                 img, [input_minu, mnt3], mask=mask)
             figures['common4'] = show_minutiae_sets(
                 img, [input_minu, mnt4], mask=mask)
+            figures['outline'] = show_minutiae_sets(
+                img, [[], []], mask=mask)
 
         minutiae['common1'] = mnt1
         minutiae['common2'] = mnt2
@@ -477,7 +479,7 @@ def show_minutiae_sets(img, minutiae_sets, mask=None):
     if mask is not None:
         contours = measure.find_contours(mask, 0.8)
         for n, contour in enumerate(contours):
-            ax.plot(contour[:, 1], contour[:, 0], linewidth=1)
+            ax.plot(contour[:, 1], contour[:, 0], linewidth=2, color='dodgerblue')
 
     ax.imshow(img, cmap='gray')
     color = ['r', 'b', 'g']
