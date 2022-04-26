@@ -44,6 +44,7 @@ class LatentExtractionModel:
     Main object which extracts the fingerprint, bridge between Fingerprint
     object in LatFigGra to transfer necessary calculated data from the package
     """
+
     def __init__(self, des_model_dirs=None, minu_model_dirs=None, enhancement_model_dir=None):
 
         self.des_models = None
