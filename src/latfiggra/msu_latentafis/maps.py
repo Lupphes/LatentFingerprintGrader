@@ -1,3 +1,16 @@
+"""
+This part of the code is adapted from:
+https://github.com/manuelaguadomtz/MSU-LatentAFIS
+which was adapted from:
+https://github.com/prip-lab/MSU-LatentAFIS
+
+I forked the newest adaptation and built a new structure here:
+https://github.com/Lupphes/MSU-LatentAFIS
+which I then restructured to be usable in LatFigGra.
+
+Both licenses are MIT
+"""
+
 import cv2
 import math
 import numpy as np
@@ -170,8 +183,8 @@ def get_quality_map_dict(img, dict, ori, spacing, block_size=16, process=False, 
             # patch[patch > t] = t
             # patch[patch < -t] = -t
             # I did not see the issue, but with my experiments I
-            # did not see improvement or worsen for my case
-            # I still let it here for future updates
+            # did not see improvement or worsen in my case
+            # I still let it here for possible future updates - Ondrej Sloup (Lupphes)
 
             patches.append(patch)
 

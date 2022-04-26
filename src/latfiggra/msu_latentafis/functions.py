@@ -1,3 +1,16 @@
+"""
+This part of the code is adapted from:
+https://github.com/manuelaguadomtz/MSU-LatentAFIS
+which was adapted from:
+https://github.com/prip-lab/MSU-LatentAFIS
+
+I forked the newest adaptation and built a new structure here:
+https://github.com/Lupphes/MSU-LatentAFIS
+which I then restructured to be usable in LatFigGra.
+
+Both licenses are MIT
+"""
+
 import math
 import cv2
 
@@ -161,6 +174,18 @@ def STFT(img, R=100):
     return img
 
 
+
+# Wei Wang, Jianwei Li, Feifei Huang, Hailiang Feng,
+# Design and implementation of Log-Gabor filter in fingerprint image enhancement
+# ISSN 0167-8655
+# https://doi.org/10.1016/j.patrec.2007.10.004
+# Implemented by Lic. Manuel Aguado Martínez in
+# https://github.com/manuelaguadomtz/MSU-LatentAFIS for the 
+# Aguado Martínez, Manuel & Hernández-Palancar, José & Castillo-Rosado, 
+# Katy & Cupull-Gómez, Rodobaldo & Kauba, Christof & Kirchgasser, Simon & Uhl, 
+# Andreas. (2021). Document scanners for minutiae-based palmprint recognition: 
+# a feasibility study. Pattern Analysis and Applications. 
+# 24. 1-14. 10.1007/s10044-020-00923-3. 
 class LogGaborFilter():
     """A logarithmic Gabor filter"""
     __copyright__ = 'Copyright 2020'

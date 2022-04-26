@@ -1,3 +1,16 @@
+"""
+This part of the code is adapted from:
+https://github.com/manuelaguadomtz/MSU-LatentAFIS
+which was adapted from:
+https://github.com/prip-lab/MSU-LatentAFIS
+
+I forked the newest adaptation and built a new structure here:
+https://github.com/Lupphes/MSU-LatentAFIS
+which I then restructured to be usable in LatFigGra.
+
+Both licenses are MIT
+"""
+
 import math
 from typing import Tuple
 import numpy as np
