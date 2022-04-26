@@ -1,8 +1,13 @@
 """
 This part of the code is adapted from:
-https://github.com/manuelaguadomtz/MSU-LatentAFIS
+Manuel Aguado Martinez
+MSU Latent Automatic Fingerprint Identification System (AFIS) -- Logarithmic Gabor filter fork
+https://github.com/manuelaguadomtz/MSU-LatentAFIS (b24eb5eb57c43932e56b82336c5bd188a9a3862e)
 which was adapted from:
-https://github.com/prip-lab/MSU-LatentAFIS
+End-to-End Latent Fingerprint Search
+Cao, Kai and Nguyen, Dinh-Luan and Tymoszek, Cori and Jain, AK
+MSU Latent Automatic Fingerprint Identification System (AFIS)
+https://github.com/prip-lab/MSU-LatentAFIS (6dd2dab9767dce3940689150e73b072c30ec08e1)
 
 I forked the newest adaptation and built a new structure here:
 https://github.com/Lupphes/MSU-LatentAFIS
@@ -43,6 +48,10 @@ def local_constrast_enhancement_gaussian(img, sigma=15):
 
 
 def lowpass_filtering(img, L):
+    """
+    Fourier transform filtering needed by Texture+Cartoon decomposition.
+    Used Fourier transform insted of lowpass filter
+    """
     h, w = img.shape
     h2, w2 = L.shape
 
@@ -69,6 +78,9 @@ def compute_gradient_norm(input):
 
 
 def fast_cartoon_texture(img, sigma=2.5, show=False):
+    """
+    Texture+Cartoon decomposition algorithm
+    """
     img = img.astype(np.float32)
     h, w = img.shape
     h2 = 2 ** int(math.ceil(math.log(h, 2)))
@@ -118,6 +130,9 @@ def fast_cartoon_texture(img, sigma=2.5, show=False):
 
 
 def STFT(img, R=100):
+    """
+    Short time Fourier transform used to enhance the image
+    """
     patch_size = 64
     block_size = 16
     ovp_size = (patch_size - block_size) // 2

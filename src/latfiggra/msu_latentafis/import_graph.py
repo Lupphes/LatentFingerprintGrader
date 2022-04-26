@@ -1,8 +1,13 @@
 """
 This part of the code is adapted from:
-https://github.com/manuelaguadomtz/MSU-LatentAFIS
+Manuel Aguado Martinez
+MSU Latent Automatic Fingerprint Identification System (AFIS) -- Logarithmic Gabor filter fork
+https://github.com/manuelaguadomtz/MSU-LatentAFIS (b24eb5eb57c43932e56b82336c5bd188a9a3862e)
 which was adapted from:
-https://github.com/prip-lab/MSU-LatentAFIS
+End-to-End Latent Fingerprint Search
+Cao, Kai and Nguyen, Dinh-Luan and Tymoszek, Cori and Jain, AK
+MSU Latent Automatic Fingerprint Identification System (AFIS)
+https://github.com/prip-lab/MSU-LatentAFIS (6dd2dab9767dce3940689150e73b072c30ec08e1)
 
 I forked the newest adaptation and built a new structure here:
 https://github.com/Lupphes/MSU-LatentAFIS

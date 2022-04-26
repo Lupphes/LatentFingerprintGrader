@@ -79,6 +79,10 @@ class Fingerprint:
         return image2blocks(image, block_size)
 
     def msu_afis(self, path_image: str, path_destination: str, path_config: Path, ext: str, extractor_class=None):
+        """
+        Generate images needed for grading with MSU_AFIS package
+        Finishes the fingerprint object
+        """
         if extractor_class == None:
             logging.info("Loading Tensorflow and other modules...")
             from .msu_latentafis.extraction_latent import load_graphs, LatentExtractionModel
@@ -103,6 +107,10 @@ class Fingerprint:
         return extractor_class
 
     def generate_helpers(self) -> None:
+        """
+        Generate various images from newly recieved parsed fingerprints
+        from MSU_AFIS
+        """
         self.figure_dict = {}
         self.image_dict = {}
 
@@ -130,6 +138,10 @@ class Fingerprint:
         self.bin_image_masked_filled.apply_mask(mask=self.mask_filled)
 
     def line_grading(self, x: int, y: int, name: str, var: str):
+        """
+        Algorithm for grading extracted perpendicular line from fingerprint
+        It is calculated for thickness and sinusoidal similarities
+        """
         gray_signal, aec_signal = self.get_perpendicular(x, y, name=name)
 
         if len(gray_signal) == 0:
@@ -148,6 +160,11 @@ class Fingerprint:
         return
 
     def grade_fingerprint(self) -> None:
+        """
+        Main pipeline of fingeprint grading part of the algorithm
+        It will run all sub-algorithms are report results
+        """
+
         logging.info(f'Grading {self.name}!')
 
         # There is no contour on the mask, and therefore it is empty
@@ -169,6 +186,9 @@ class Fingerprint:
         logging.info(f'Grading {self.name} finished!')
 
     def grade_minutiae_points(self, name='default', thresh=1) -> None:
+        """
+        Algorithm for grading minutiae points
+        """
         if 0 > thresh or thresh > 3:
             raise ArrgumentError()
 
@@ -182,7 +202,14 @@ class Fingerprint:
         self.report.report_minutiae(number_of_cmp, minutiae_points)
 
     def grade_contrast(self, name='contrast') -> None:
+        """
+        Algorithm  for grading contrast
+        All three algorithms are in this function
+        Michelson's, Colour difference, RMSE
+        """
+    
         # TODO: Add Weber contrast
+        # Probably can use this, but not used
         # https://stackoverflow.com/questions/68145161/using-python-opencv-to-calculate-vein-leaf-density
 
         # Michelson contrast
@@ -297,6 +324,11 @@ class Fingerprint:
         )
 
     def remove_black_array(self, array, black_threshold=10) -> npt.NDArray:
+        """
+        Remove black longer black periods from line signal
+        to get cleaner extracted line
+        Threshold is set to 10 -> 10 black pixels and more are removed
+        """
         # Remove masked parts
         processed_extracted = []
 
@@ -327,7 +359,16 @@ class Fingerprint:
         return array
 
     def local_max_min(self, line_signal: npt.NDArray[np.float64]) -> Tuple[int, npt.NDArray[np.float64], npt.NDArray[np.float64]]:
-        # Source: https://github.com/guillaume-chevalier/filtering-stft-and-laplace-transform
+        """
+        Calculates local minimum and maximum of the image with 
+        butter lowpass filter from GitHub.
+        
+        Adapted from:
+        Guillaume Chevalier
+        Filtering signal with a butterworth low-pass filter and plotting the STFT of it with a Hanning window and then the Laplace transform.
+        https://github.com/guillaume-chevalier/filtering-stft-and-laplace-transform
+        2018, d5eed60fb4dcf3cca266f4145f2117e39d4f4a33
+        """
         def butter_lowpass(cutoff: int, nyq_freq: np.float64, order=4):
             normal_cutoff = float(cutoff) / nyq_freq
             b, a = butter(order, normal_cutoff, btype='lowpass',
@@ -356,6 +397,10 @@ class Fingerprint:
         return ridge_count, local_max, local_min
 
     def grade_lines(self, name='lines', draw=True) -> None:
+        """
+        Grade number of ridges in horizontal and vertical direction and
+        find a stationary point
+        """
 
         def create_candidates(dicto: Dict, name: str, value: int, cord: int, sample: int):
             if (len(dicto[name]['candidates']) < sample):
@@ -572,7 +617,9 @@ class Fingerprint:
         return expected_core_x_off, expected_core_y_off
 
     def grade_sinusoidal(self, line_signal: npt.NDArray[np.uint8], name: str, draw=True, really=False) -> None:
-
+        """
+        Grade the Sinusoidal Similarity
+        """
         def square_diff_match(line_signal: npt.NDArray[np.float64], sin_array: npt.NDArray[np.float64], sin_one: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
             # Using the difference of squares to find the best period alignment
             best_diff: npt.NDArray[np.float64] = None
@@ -896,6 +943,10 @@ class Fingerprint:
         return cx, cy
 
     def get_perpendicular(self, cx: int, cy: int, name: str, angle_base=1):
+        """
+        Calculate the perpendicular line with Sobel filter and
+        prepare line which is extracted
+        """
         # TODO: Optimisation (read in 4 directions) - rotate just till 90
         # or use scimage function for line rotation
         def rotate_image(image: Image, angle: int, center_col: int, center_row: int) -> Tuple[Image, int, int]:

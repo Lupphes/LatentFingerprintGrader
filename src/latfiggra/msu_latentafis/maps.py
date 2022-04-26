@@ -1,8 +1,13 @@
 """
 This part of the code is adapted from:
-https://github.com/manuelaguadomtz/MSU-LatentAFIS
+Manuel Aguado Martinez
+MSU Latent Automatic Fingerprint Identification System (AFIS) -- Logarithmic Gabor filter fork
+https://github.com/manuelaguadomtz/MSU-LatentAFIS (b24eb5eb57c43932e56b82336c5bd188a9a3862e)
 which was adapted from:
-https://github.com/prip-lab/MSU-LatentAFIS
+End-to-End Latent Fingerprint Search
+Cao, Kai and Nguyen, Dinh-Luan and Tymoszek, Cori and Jain, AK
+MSU Latent Automatic Fingerprint Identification System (AFIS)
+https://github.com/prip-lab/MSU-LatentAFIS (6dd2dab9767dce3940689150e73b072c30ec08e1)
 
 I forked the newest adaptation and built a new structure here:
 https://github.com/Lupphes/MSU-LatentAFIS
@@ -22,6 +27,17 @@ from .functions import fast_cartoon_texture
 
 
 def construct_dictionary(ori_num=30):
+    """
+    Contstruct the ridge dictionary which is then used for estimation
+    introduced in:
+    Segmentation and enhancement of latent fingerprints: A coarse to fine ridge structure dictionary
+    Cao, Kai and Liu, Eryun and Jain, Anil K
+    0162-8828
+
+    and improved in:
+    End-to-End Latent Fingerprint Search
+    Cao, Kai and Nguyen, Dinh-Luan and Tymoszek, Cori and Jain, AK
+    """
     ori_dict = []
     s = []
     for i in range(ori_num):
@@ -73,7 +89,6 @@ def construct_dictionary(ori_num=30):
 
 
 def smooth_dir_map(dir_map, sigma=2.0, mask=None):
-
     cos2Theta = np.cos(dir_map * 2)
     sin2Theta = np.sin(dir_map * 2)
     if mask is not None:
@@ -91,7 +106,17 @@ def smooth_dir_map(dir_map, sigma=2.0, mask=None):
 
 
 def SSIM(img, temp_img, block_size=16, thr=0.65):
-    # Structural similarity
+    """
+    Calculates structural similarity between two images
+    introduced in:
+    Segmentation and enhancement of latent fingerprints: A coarse to fine ridge structure dictionary
+    Cao, Kai and Liu, Eryun and Jain, Anil K
+    0162-8828
+
+    and improved in:
+    End-to-End Latent Fingerprint Search
+    Cao, Kai and Nguyen, Dinh-Luan and Tymoszek, Cori and Jain, AK
+    """
     h, w = img.shape[:2]
     patch_size = 64
     blkH = h / block_size
@@ -144,6 +169,18 @@ def SSIM(img, temp_img, block_size=16, thr=0.65):
 
 
 def get_quality_map_dict(img, dict, ori, spacing, block_size=16, process=False, R=500.0, t=0.05):
+    """
+    Dictionary approach to look for ridges and estimate "quality", orientation and 
+    frequency
+    introduced in:
+    Segmentation and enhancement of latent fingerprints: A coarse to fine ridge structure dictionary
+    Cao, Kai and Liu, Eryun and Jain, Anil K
+    0162-8828
+
+    and improved in:
+    End-to-End Latent Fingerprint Search
+    Cao, Kai and Nguyen, Dinh-Luan and Tymoszek, Cori and Jain, AK
+    """
     if img.dtype == 'uint8':
         img = img.astype(np.float)
     if process:

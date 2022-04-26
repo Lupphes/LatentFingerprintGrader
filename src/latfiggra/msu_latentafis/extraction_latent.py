@@ -1,8 +1,13 @@
 """
 This part of the code is adapted from:
-https://github.com/manuelaguadomtz/MSU-LatentAFIS
+Manuel Aguado Martinez
+MSU Latent Automatic Fingerprint Identification System (AFIS) -- Logarithmic Gabor filter fork
+https://github.com/manuelaguadomtz/MSU-LatentAFIS (b24eb5eb57c43932e56b82336c5bd188a9a3862e)
 which was adapted from:
-https://github.com/prip-lab/MSU-LatentAFIS
+End-to-End Latent Fingerprint Search
+Cao, Kai and Nguyen, Dinh-Luan and Tymoszek, Cori and Jain, AK
+MSU Latent Automatic Fingerprint Identification System (AFIS)
+https://github.com/prip-lab/MSU-LatentAFIS (6dd2dab9767dce3940689150e73b072c30ec08e1)
 
 I forked the newest adaptation and built a new structure here:
 https://github.com/Lupphes/MSU-LatentAFIS
@@ -35,6 +40,10 @@ from .import_graph import get_patch_index, Descriptor, MinutiaeExtraction, AutoE
 
 
 class LatentExtractionModel:
+    """
+    Main object which extracts the fingerprint, bridge between Fingerprint
+    object in LatFigGra to transfer necessary calculated data from the package
+    """
     def __init__(self, des_model_dirs=None, minu_model_dirs=None, enhancement_model_dir=None):
 
         self.des_models = None
@@ -90,6 +99,12 @@ class LatentExtractionModel:
         logging.info("Finished loading models.")
 
     def latent_extraction(self, img_file: str, ext: str, output_dir=None, ppi=500, show_minutiae=True, minu_file=None, block_size=16):
+        """
+        Extraction of the fingerprint image, data are extracted here and then passed to the caller
+        Expects prior loaded modules to work
+        Generates mask, binary image and enhanced version of the fingerprint
+        Finds minutuae points on the image
+        """
 
         # Edited and moved to main package
         def image2blocks(image: npt.NDArray, block_size: int) -> npt.NDArray:
@@ -329,6 +344,9 @@ class LatentExtractionModel:
         return [mnt1, mnt2, mnt3, mnt4], images['mask'] * 255, images['aec'].astype(np.uint8), images['loggabor_texture_bin']
 
     def generate_images(self, root_name: Path, ext: str, images: Dict[str, npt.NDArray], minutiae: Dict[str, npt.NDArray], figures: Dict[str, plt.Figure]) -> None:
+        """
+        Generates images from passed dictionary
+        """
         for item in images:
             fname = str(root_name.with_name(f'{root_name.name}_{item}{ext}'))
             cv2.imwrite(fname, images[item])
@@ -346,6 +364,10 @@ class LatentExtractionModel:
             )
 
     def get_mask(self, quality_map_aec, stft_texture_img, aec_img, block_size) -> npt.NDArray:
+        """
+        Uses Short Time Fourier transform, generated quality map and autoencoder to find
+        a mask of the fingeprint. It will take the biggest fingeprint it can find 
+        """
         bmask_aec = quality_map_aec > 0.45
         bmask_aec = binary_closing(
             bmask_aec, np.ones((3, 3))).astype(np.int64)
@@ -375,7 +397,9 @@ class LatentExtractionModel:
         return mask
 
     def get_common_minutiae(self, minutiae_sets, thr=3):
-        """Return common minutiae among different minutiae sets"""
+        """ 
+        Return common minutiae among different minutiae sets
+        """
         nrof_minutiae_sets = len(minutiae_sets)
 
         init_ind = 3
@@ -417,7 +441,9 @@ class LatentExtractionModel:
         return mnt
 
     def remove_spurious_minutiae(self, mnt, mask):
-        """Remove spurious minutiae in the borders of a mask"""
+        """
+        Remove spurious minutiae in the borders of a mask
+        """
         minu_num = len(mnt)
         if minu_num <= 0:
             return mnt
@@ -447,7 +473,9 @@ class LatentExtractionModel:
 
 
 def load_graphs(path_config: Path):
-    """Returns an instance of the latent feature extractor class"""
+    """
+    Returns an instance of the latent feature extractor class
+    """
     DescriptorModelPatch2 = path_config / \
         "embeddingsize_64_patchtype_2/20180410-213622/"
     DescriptorModelPatch8 = path_config / \
