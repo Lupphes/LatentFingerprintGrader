@@ -62,7 +62,7 @@ optional arguments:
 ```
 The basic starts need to specify the input folder with `-s`. It is recommended to specify PPI as it the script will yield better results and output folder.
 
-## Bit for the opponent
+## Part for the opponent
 I included everything needed on the attached SDHC card, especially the `models` folder, which contains the necessary models to run the 
 enhancement process and the NIST SD27 latent dataset in the `SD27-lat` folder, where the graded fingerprints are. I also computed the
 dataset in advance, as it takes around 2 hours to calculate it completely for all 292 fingerprints, and the result can be found in 
