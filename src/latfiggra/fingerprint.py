@@ -680,7 +680,7 @@ class Fingerprint:
         best_sin = square_diff_match(line_signal, sin_array, sin_one)
 
         if draw:
-            fig_sinus_all: plt.Figure = plt.figure(figsize=(6.2, 2), dpi=150)
+            fig_sinus_all: plt.Figure = plt.figure(figsize=(6.2, 2.5), dpi=150)
             plt.title(
                 'Sinus similarity – whole sinusoidal wave aligned to all ridges'
             )
@@ -813,7 +813,7 @@ class Fingerprint:
         display_thickness = calculate_thickness(line_signal, height_threshold)
 
         if draw:
-            fig_thickness = plt.figure(figsize=(6.2, 3), dpi=150)
+            fig_thickness = plt.figure(figsize=(6.2, 2.5), dpi=150)
             plt.title('Ridge thickness – set height')
             plt.plot(line_signal, label='Ridges', figure=fig_thickness)
             plt.plot(display_thickness, label='Thickness',
