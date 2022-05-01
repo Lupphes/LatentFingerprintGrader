@@ -24,10 +24,10 @@ def argument_parse() -> argparse.ArgumentParser:
         description='LatFigGra (Latent Fingerprint Grader) 2022, Author: Ondřej Sloup (xsloup02)'
     )
     parser.add_argument(
-        '-g', '--gpu', type=str, help='Comma-separated list of graphic cards which the script will use for msu_afis. By default `0`.', default='0'
+        '-g', '--gpu', type=str, help='Comma-separated list of graphic cards which the script will use for msu_afis. By default, `0`.', default='0'
     )
     parser.add_argument(
-        '-e', '--ext', type=str, help='File extension to which format the script will generate the output images as. By default `jp2`.', default='jp2'
+        '-e', '--ext', type=str, help='File extension to which format the script will generate the output images. By default, `jp2`.', default='jp2'
     )
     parser.add_argument(
         '-s', '--sdir', type=Path,
@@ -37,13 +37,13 @@ def argument_parse() -> argparse.ArgumentParser:
         '-d', '--ddir', type=Path, help='Path to the destination folder, where the script will store fingerprint images and logs.'
     )
     parser.add_argument(
-        '-m', '--models', type=Path, help='Path to the model folder. By default `./models`.', default='models'
+        '-m', '--models', type=Path, help='Path to the model folder. By default, `./models`.', default='models'
     )
     parser.add_argument(
         '-r', '--regenerate', help='Flag to regenerate already computed fingerprints (their pickle files) despite their existence.', action='store_true'
     )
     parser.add_argument(
-        '-p', '--ppi', type=int, help='PPI (Pixels per inch) under which the scanner scanned the fingerprints. By default 500.', default=500
+        '-p', '--ppi', type=int, help='PPI (Pixels per inch) under which the scanner scanned the fingerprints. By default, 500.', default=500
     )
 
     return parser.parse_args()
