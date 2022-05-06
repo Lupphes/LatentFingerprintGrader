@@ -21,7 +21,11 @@ Install the required packages:
 ```bash
 pip3 install -r requirements.txt
 ```
-Put the model folder in the root directory, or do not forget to specify the path while running the program. You can download it from one of the following addresses [VUT Google Drive](https://drive.google.com/drive/folders/1QUJu4xwiIpOCbsu2zc5goLL8_UXD3ua3?usp=sharing) or [MSU prip-lab Google Drive](https://drive.google.com/drive/folders/1QUJu4xwiIpOCbsu2zc5goLL8_UXD3ua3?usp=sharing).
+Put the model folder in the root directory, or do not forget to specify the path of the model folder while running the program. 
+You can download it from one of the following addresses [VUT Google Drive](https://drive.google.com/drive/folders/1QUJu4xwiIpOCbsu2zc5goLL8_UXD3ua3?usp=sharing), 
+[MSU prip-lab Google Drive](https://drive.google.com/drive/folders/12wgcb5K_T5yNTsLYb557JLdhf2IHvo_j?usp=sharing), or 
+[VUT FIT Next Cloud](https://nextcloud.fit.vutbr.cz/s/CzAckPWKqHrJwoe) (models.zip). 
+This step should not be needed if you have an SDHC card with the prepared folder.
 
 ## Usage
 
@@ -51,10 +55,9 @@ optional arguments:
 For the most straightforward start, the demo scripts need specification of the input folder with `-s`. It is recommended to specify PPI as the script will yield better results.
 
 ## Part for the opponent
-I included everything needed on the attached SDHC card, especially the `models` folder, which contains the necessary models to run the 
-enhancement process and the NIST SD27 latent dataset in the `SD27-lat` folder, where the graded fingerprints are. I also computed the
-dataset in advance, as it takes around 2 hours to calculate it completely for all 292 fingerprints, and the result can be found in 
-the `out` folder. You can compute it on your own from the attached zip files.
+I included everything needed on the attached SDHC card and created the `LatentFingerprintGrader-2.0.2/` folder, which has everything prepared for execution. The folder contains the `models/` folder, which has all necessary models for the enhancement process and the NIST SD27 latent dataset in 
+the `SD27-lat/` folder, where the graded fingerprints are. I also computed the dataset in advance, as it takes around 2 hours to calculate it 
+entirely for all 292 fingerprints, and the result can be found in the `out/` folder. You can set it up on your own from the attached zip files or just run the command from the specified directory. The SDHC card is locked for writing, so it is needed that to copy the  `LatentFingerprintGrader-2.0.2/` folder to your computer.
 
 The fingerprint grading process can be executed with this command inside the virtual environment:
 ```bash
