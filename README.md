@@ -3,7 +3,7 @@
 LatFigGra is a Python library for grading fingerprints. It grades fingerprints based on the number of minutiae points, number of ridges, contrast, sinusoidal similarity and ridge thickness.
 
 ## Abstract
-    Dactyloscopic traces are one of the critical aspects of biometric identification. They represent an element by which people can be recognised and authorised. Nonetheless, it is necessary to evaluate fingerprint value by the number of features it can provide and identify if it is usable or unusable and therefore tell us how much of a value it can bring. We established a process that grades fingerprints based on contextual and statistical values by using various enhancements and grading algorithms. These algorithms can determine if the fingerprint is good quality and can be used for future processing or discarded. We divided fingerprints into quality groups based on their quality of minutiae points, the number of ridges, contrast, sinusoidal similarity and ridge thickness. We successfully evaluated fingerprints and grouped them similarly to the NIST SD27 quality groups. The results from algorithms allowed us to draw conclusions about graded fingerprints' quality and rate their usability.
+Dactyloscopic traces are one of the critical aspects of biometric identification. They represent an element by which people can be recognised and authorised. Nonetheless, it is necessary to evaluate fingerprint value by the number of features it can provide and identify if it is usable or unusable and therefore tell us how much of a value it can bring. We established a process that grades fingerprints based on contextual and statistical values using various enhancements and grading algorithms. These algorithms can determine if the fingerprint is good quality and can be used for future processing or should be discarded. We divided fingerprints into quality groups based on their quality of their minutiae points, number of ridges, contrast, sinusoidal similarity and ridge thickness. We successfully evaluated fingerprints and grouped them similarly to the NIST SD27 quality groups. The results from algorithms allowed us to draw conclusions about graded fingerprints' quality and rate their usability.
 
 ## Installation 
 
@@ -89,7 +89,7 @@ The demo.py script needs at least 13GB, recommended 16GB, of RAM. It will load t
 
 
 ## Contributing
-Pull requests, forks and other changes are welcomed are welcome.
+Pull requests, forks and other changes are welcomed.
 
 ## MD5 hash
 MD5 hashes calculated for files can be found here:
