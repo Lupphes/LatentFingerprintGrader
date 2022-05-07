@@ -1,3 +1,8 @@
+"""definitions.py
+@Author: Ondřej Sloup (xsloup02)
+@Date: 07.05.2022
+"""
+
 from enum import IntEnum, Enum
 
 

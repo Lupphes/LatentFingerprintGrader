@@ -1,3 +1,8 @@
+"""report.py
+@Author: Ondřej Sloup (xsloup02)
+@Date: 07.05.2022
+"""
+
 import os
 import json
 import numpy as np

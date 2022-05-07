@@ -1,3 +1,8 @@
+"""__init__.py
+@Author: Ondřej Sloup (xsloup02)
+@Date: 07.05.2022
+"""
+
 from . import extraction_latent
 from . import functions
 from . import maps

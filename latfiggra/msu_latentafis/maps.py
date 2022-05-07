@@ -1,4 +1,4 @@
-"""
+"""maps.py
 This part of the code is adapted from:
 Manuel Aguado Martinez
 MSU Latent Automatic Fingerprint Identification System (AFIS) -- Logarithmic Gabor filter fork
@@ -12,6 +12,7 @@ https://github.com/prip-lab/MSU-LatentAFIS (6dd2dab9767dce3940689150e73b072c30ec
 I forked the newest adaptation and built a new structure here:
 https://github.com/Lupphes/MSU-LatentAFIS
 which I then restructured to be usable in LatFigGra.
+- Ondřej Sloup (xsloup02)
 
 Both licenses are MIT
 """

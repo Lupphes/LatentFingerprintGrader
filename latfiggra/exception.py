@@ -1,3 +1,8 @@
+"""exception.py
+@Author: Ondřej Sloup (xsloup02)
+@Date: 07.05.2022
+"""
+
 import enum
 import traceback
 import sys

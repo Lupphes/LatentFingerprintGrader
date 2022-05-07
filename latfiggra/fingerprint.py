@@ -1,3 +1,8 @@
+"""fingerprint.py
+@Author: Ondřej Sloup (xsloup02)
+@Date: 07.05.2022
+"""
+
 import os
 import cv2
 import logging
@@ -207,7 +212,7 @@ class Fingerprint:
         All three algorithms are in this function
         Michelson's, Colour difference, RMSE
         """
-    
+
         # TODO: Add Weber contrast
         # Probably can use this, but not used
         # https://stackoverflow.com/questions/68145161/using-python-opencv-to-calculate-vein-leaf-density
@@ -362,7 +367,7 @@ class Fingerprint:
         """
         Calculates local minimum and maximum of the image with 
         butter lowpass filter from GitHub.
-        
+
         Adapted from:
         Guillaume Chevalier
         Filtering signal with a butterworth low-pass filter and plotting the STFT of it with a Hanning window and then the Laplace transform.

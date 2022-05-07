@@ -1,3 +1,8 @@
+"""contrast_types.py
+@Author: Ondřej Sloup (xsloup02)
+@Date: 07.05.2022
+"""
+
 from enum import Enum
 
 

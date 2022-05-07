@@ -1,3 +1,8 @@
+"""image.py
+@Author: Ondřej Sloup (xsloup02)
+@Date: 07.05.2022
+"""
+
 from __future__ import annotations
 import os
 import cv2

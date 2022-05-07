@@ -1,3 +1,8 @@
+"""__init__.py
+@Author: Ondřej Sloup (xsloup02)
+@Date: 07.05.2022
+"""
+
 from . import fingerprint
 from . import contrast_types
 from . import image

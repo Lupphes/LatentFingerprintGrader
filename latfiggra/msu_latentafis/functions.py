@@ -1,4 +1,4 @@
-"""
+"""functions.py
 This part of the code is adapted from:
 Manuel Aguado Martinez
 MSU Latent Automatic Fingerprint Identification System (AFIS) -- Logarithmic Gabor filter fork
@@ -12,6 +12,7 @@ https://github.com/prip-lab/MSU-LatentAFIS (6dd2dab9767dce3940689150e73b072c30ec
 I forked the newest adaptation and built a new structure here:
 https://github.com/Lupphes/MSU-LatentAFIS
 which I then restructured to be usable in LatFigGra.
+- Ondřej Sloup (xsloup02)
 
 Both licenses are MIT
 """
@@ -29,6 +30,9 @@ from typing import Tuple
 
 
 def local_constrast_enhancement_gaussian(img, sigma=15):
+    """
+    Gaussian blur is applied to normalised image
+    """
     img = img.astype(np.float32)
 
     meanV = cv2.GaussianBlur(img, (sigma, sigma), 0)
@@ -40,11 +44,6 @@ def local_constrast_enhancement_gaussian(img, sigma=15):
     normalized = np.clip(normalized, -1, 1)
     normalized = (normalized + 1) * 127.5
     return normalized
-
-# ----------------------------------------------------------------
-# A. Buades, T. M. Le, J. Morel and L. A. Vese, "Fast Cartoon + Texture Image Filters,"
-# in IEEE Transactions on Image Processing,
-# vol. 19, no. 8, pp. 1978-1986, Aug. 2010, doi: 10.1109/TIP.2010.2046605.
 
 
 def lowpass_filtering(img, L):
@@ -80,6 +79,10 @@ def compute_gradient_norm(input):
 def fast_cartoon_texture(img, sigma=2.5, show=False):
     """
     Texture+Cartoon decomposition algorithm
+    introduced in:
+    A. Buades, T. M. Le, J. Morel and L. A. Vese, "Fast Cartoon + Texture Image Filters,"
+    in IEEE Transactions on Image Processing,
+    vol. 19, no. 8, pp. 1978-1986, Aug. 2010, doi: 10.1109/TIP.2010.2046605.
     """
     img = img.astype(np.float32)
     h, w = img.shape
@@ -126,12 +129,16 @@ def fast_cartoon_texture(img, sigma=2.5, show=False):
         plt.show()
     return v
 
-# ----------------------------------------------------------------
-
 
 def STFT(img, R=100):
     """
     Short time Fourier transform used to enhance the image
+    introduced in:
+    CHIKKERUR, Sharat, Alexander N CARTWRIGHT a Venu GOVINDARAJU.
+    Fingerprint enhancement using STFT analysis.
+    Pattern recognition [online]. OXFORD: Elsevier, 2007, 40(1),
+    198-211 [cit. 2022-05-06]. ISSN 0031-3203.
+    Available from: doi:10.1016/j.patcog.2006.05.036
     """
     patch_size = 64
     block_size = 16
@@ -189,19 +196,23 @@ def STFT(img, R=100):
     return img
 
 
-# Wei Wang, Jianwei Li, Feifei Huang, Hailiang Feng,
-# Design and implementation of Log-Gabor filter in fingerprint image enhancement
-# ISSN 0167-8655
-# https://doi.org/10.1016/j.patrec.2007.10.004
-# Implemented by Lic. Manuel Aguado Martínez in
-# https://github.com/manuelaguadomtz/MSU-LatentAFIS for the
-# Aguado Martínez, Manuel & Hernández-Palancar, José & Castillo-Rosado,
-# Katy & Cupull-Gómez, Rodobaldo & Kauba, Christof & Kirchgasser, Simon & Uhl,
-# Andreas. (2021). Document scanners for minutiae-based palmprint recognition:
-# a feasibility study. Pattern Analysis and Applications.
-# 24. 1-14. 10.1007/s10044-020-00923-3.
 class LogGaborFilter():
-    """A logarithmic Gabor filter"""
+    """
+    A logarithmic Gabor filter
+    introduced in:
+    Wei Wang, Jianwei Li, Feifei Huang, Hailiang Feng,
+    Design and implementation of Log-Gabor filter in fingerprint image enhancement
+    ISSN 0167-8655
+    https://doi.org/10.1016/j.patrec.2007.10.004
+
+    Implemented by Lic. Manuel Aguado Martínez in:
+    https://github.com/manuelaguadomtz/MSU-LatentAFIS for the
+    Aguado Martínez, Manuel & Hernández-Palancar, José & Castillo-Rosado,
+    Katy & Cupull-Gómez, Rodobaldo & Kauba, Christof & Kirchgasser, Simon & Uhl,
+    Andreas. (2021). Document scanners for minutiae-based palmprint recognition:
+    a feasibility study. Pattern Analysis and Applications.
+    24. 1-14. 10.1007/s10044-020-00923-3.
+    """
     __copyright__ = 'Copyright 2020'
     __author__ = u'Lic. Manuel Aguado Martínez'
 
@@ -285,7 +296,9 @@ class LogGaborFilter():
         return g_filters
 
     def _get_wind_filter(self):
-        """Creates a filter to fusion windows"""
+        """
+        Creates a filter to fusion windows
+        """
         # Creating grid
         x, y = np.meshgrid(range(self.wsize), range(self.wsize))
 
@@ -299,7 +312,9 @@ class LogGaborFilter():
         return wfilter
 
     def apply(self, img) -> Tuple[npt.NDArray, np.float64]:
-        """Apply the filter over an image"""
+        """
+        Apply the filter over an image
+        """
 
         # Padding input image
         ovp_size = (self.wsize - self.bsize) // 2
@@ -337,6 +352,9 @@ class LogGaborFilter():
 
 
 def get_gabor_filters(angle_inc=3, fre_num=30):
+    """
+    Function to define orientations used in Gabor filter with a kernel
+    """
     ori_num = 180 // angle_inc
     gaborfilter = np.zeros((ori_num, fre_num), dtype=object)
     for i in range(ori_num):
@@ -361,6 +379,9 @@ def get_gabor_filters(angle_inc=3, fre_num=30):
 
 
 def gabor_filtering_pixel2(img, dir_map, fre_map, mask=None, block_size=16, angle_inc=3, gabor_filters=None):
+    """
+    Apply the Gabor filter to the image and enhance it
+    """
     h, w = img.shape
     if mask is None:
         mask = np.ones((h, w), dtype=np.uint8)
