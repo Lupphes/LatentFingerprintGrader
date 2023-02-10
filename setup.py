@@ -67,7 +67,7 @@ setup(
         "scipy == 1.7.3",
         "six == 1.16.0",
         "tensorboard == 2.0.2",
-        "tensorflow == 2.0.0",
+        "tensorflow == 2.9.3",
         "tensorflow-estimator == 2.0.1",
         "termcolor == 1.1.0",
         "tifffile == 2021.11.2",
