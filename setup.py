@@ -73,7 +73,7 @@ setup(
         "tifffile == 2021.11.2",
         "typing_extensions == 4.1.1",
         "urllib3 == 1.26.9",
-        "Werkzeug == 2.0.3",
+        "Werkzeug == 2.2.3",
         "wrapt == 1.14.0",
         "zipp == 3.7.0"
     ],
