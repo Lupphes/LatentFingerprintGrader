@@ -318,7 +318,7 @@ class LogGaborFilter():
 
         # Padding input image
         ovp_size = (self.wsize - self.bsize) // 2
-        img = np.lib.pad(img, (ovp_size, ovp_size), 'symmetric')
+        img = np.pad(img, (ovp_size, ovp_size), 'symmetric')
         fimage = np.zeros_like(img, dtype=np.float64)
 
         for i in range(self.orient_map.shape[0]):

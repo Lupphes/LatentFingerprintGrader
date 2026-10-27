@@ -183,20 +183,20 @@ def get_quality_map_dict(img, dict, ori, spacing, block_size=16, process=False, 
     Cao, Kai and Nguyen, Dinh-Luan and Tymoszek, Cori and Jain, AK
     """
     if img.dtype == 'uint8':
-        img = img.astype(np.float)
+        img = img.astype(np.float64)
     if process:
         img = fast_cartoon_texture(img)
     h, w = img.shape
 
     blkH, blkW = h // block_size, w // block_size
-    quality_map = np.zeros((blkH, blkW), dtype=np.float)
-    dir_map = np.zeros((blkH, blkW), dtype=np.float)
-    fre_map = np.zeros((blkH, blkW), dtype=np.float)
+    quality_map = np.zeros((blkH, blkW), dtype=np.float64)
+    dir_map = np.zeros((blkH, blkW), dtype=np.float64)
+    fre_map = np.zeros((blkH, blkW), dtype=np.float64)
 
     patch_size = np.sqrt(dict.shape[0])
     patch_size = patch_size.astype(np.int64)
     pad_size = (patch_size - block_size) // 2
-    img = np.lib.pad(img, (pad_size, pad_size), 'symmetric')
+    img = np.pad(img, (pad_size, pad_size), 'symmetric')
 
     patches = []
     pixel_list = []
