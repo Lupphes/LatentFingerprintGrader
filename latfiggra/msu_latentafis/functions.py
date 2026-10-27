@@ -378,6 +378,21 @@ def get_gabor_filters(angle_inc=3, fre_num=30):
     return gaborfilter
 
 
+def apply_filter(src_arr, dst_arr, gabor_filters, idx_list, frequency_ind, angle_ind):
+    for p, i, j in idx_list:
+        frequency_ind_b = frequency_ind[i, j]
+        if frequency_ind_b < 5 or frequency_ind_b >= 30:
+            continue
+        angle_ind_b = angle_ind[i, j]
+        kernel = gabor_filters[angle_ind_b, frequency_ind_b]
+        kh, kw = kernel.shape
+        sh = kh >> 1
+        sw = kw >> 1
+        dst_arr[p] = np.sum(
+            src_arr[i - sh:i + sh + 1, j - sw:j + sw + 1] * kernel)
+    return
+
+
 def gabor_filtering_pixel2(img, dir_map, fre_map, mask=None, block_size=16, angle_inc=3, gabor_filters=None):
     """
     Apply the Gabor filter to the image and enhance it
@@ -419,20 +434,6 @@ def gabor_filtering_pixel2(img, dir_map, fre_map, mask=None, block_size=16, angl
     candi_ind = np.where(mask > 0)
 
     candi_num = len(candi_ind[0])
-
-    def apply_filter(src_arr, dst_arr, gabor_filters, idx_list, frequency_ind, angle_ind):
-        for p, i, j in idx_list:
-            frequency_ind_b = frequency_ind[i, j]
-            if frequency_ind_b < 5 or frequency_ind_b >= 30:
-                continue
-            angle_ind_b = angle_ind[i, j]
-            kernel = gabor_filters[angle_ind_b, frequency_ind_b]
-            kh, kw = kernel.shape
-            sh = kh >> 1
-            sw = kw >> 1
-            dst_arr[p] = np.sum(
-                src_arr[i - sh:i + sh + 1, j - sw:j + sw + 1] * kernel)
-        return
 
     from multiprocessing import Process, Array
     threads = []
