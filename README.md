@@ -11,7 +11,7 @@ Use the package manager [pip](https://pip.pypa.io/en/stable/) to install the req
 
 Create a virtual environment:
 ```bash
-virtualenv --python=$(which python3.7) venv
+virtualenv --python=$(which python3.12) venv
 ```
 Enter the virtual environment:
 ```bash
