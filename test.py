@@ -133,7 +133,7 @@ def json2pandas(log_file_path: Path) -> pd.DataFrame:
     df['image_class']
 
     values = ['green', 'orange', 'red', 'black']
-    df['color'] = np.select(conditions, values)
+    df['color'] = np.select(conditions, values, default='black')
 
     df = df.sort_values('image_class')
     df.reset_index(inplace=True)
